@@ -72,8 +72,8 @@ wait_for_litellm() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        # Try health endpoint (LiteLLM allows unauthenticated health checks)
-        if curl -sf "${base_url}/health" &> /dev/null; then
+        # Try health endpoint with API key
+        if curl -sf -H "Authorization: Bearer ${api_key}" "${base_url}/health" &> /dev/null; then
             echo ""
             log_success "LiteLLM proxy is ready"
             return 0

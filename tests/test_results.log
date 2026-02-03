@@ -1,0 +1,40 @@
+========================================
+Ralph Docker Shell Scripts Test Suite
+========================================
+
+[0;36mTesting format-output.sh functions[0m
+[0;32m✓[0m truncate_text preserves short text
+[0;32m✓[0m truncate_text truncates long text
+[0;32m✓[0m truncate_text respects custom length
+[0;32m✓[0m format-output processes valid JSON
+[0;32m✓[0m format-output passes through invalid JSON
+[0;32m✓[0m format-output handles empty input
+[0;32m✓[0m format-output formats error messages
+
+[0;36mTesting loop.sh functions[0m
+[0;32m✓[0m log_info includes [ralph] prefix
+[0;32m✓[0m log_info includes message
+[0;32m✓[0m log_warn includes [ralph] prefix
+[0;32m✓[0m log_warn includes message
+[0;32m✓[0m log_error includes [ralph] prefix
+[0;32m✓[0m log_error includes message
+[0;32m✓[0m log_success includes [ralph] prefix
+[0;32m✓[0m log_success includes message
+[0;32m✓[0m git branch detection works
+[0;32m✓[0m RALPH_MODE environment variable is read
+[0;32m✓[0m RALPH_MAX_ITERATIONS environment variable is read
+[0;32m✓[0m RALPH_MODEL environment variable is read
+[0;32m✓[0m Error detection for model not found works
+[0;32m✓[0m Error detection for connection errors works
+
+[0;36mTesting extract-credentials.sh functions[0m
+[0;32m✓[0m extract-credentials detects non-macOS systems
+[0;32m✓[0m extract-credentials creates directories and files with correct permissions
+[0;32m✓[0m Credentials file created
+[0;32m✓[0m Credentials file has correct content
+
+[0;36mTesting entrypoint.sh functions[0m
+[0;32m✓[0m detect_auth recognizes API key auth
+[0;32m✓[0m detect_auth recognizes LiteLLM proxy
+[0;32m✓[0m detect_auth recognizes custom base URL with API key
+[0;31m[ralph][0m No authentication found!

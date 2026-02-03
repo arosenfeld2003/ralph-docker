@@ -16,6 +16,9 @@ log_warn() { echo -e "${YELLOW}[ralph]${NC} $1"; }
 log_error() { echo -e "${RED}[ralph]${NC} $1"; }
 log_success() { echo -e "${GREEN}[ralph]${NC} $1"; }
 
+# Change to workspace directory
+cd "${RALPH_WORKSPACE:-/home/ralph/workspace}"
+
 # Configuration from environment
 MODE="${RALPH_MODE:-build}"
 MAX_ITERATIONS="${RALPH_MAX_ITERATIONS:-0}"
@@ -168,9 +171,20 @@ while true; do
             elif push_output=$(git push -u origin "$CURRENT_BRANCH" 2>&1); then
                 log_success "Push successful (set upstream)"
             else
-                log_warn "Push failed: $push_output"
+                log_warn "Push failed (continuing anyway)"
+                # Check for common SSH issues
+                if echo "$push_output" | grep -q "authenticity of host\|Host key verification"; then
+                    log_warn "SSH host key not trusted. Run on host machine:"
+                    log_warn "  ssh-keyscan <git-host> >> ~/.ssh/known_hosts"
+                elif echo "$push_output" | grep -q "Permission denied\|publickey"; then
+                    log_warn "SSH key issue. Ensure ~/.ssh is mounted and keys have correct permissions"
+                else
+                    echo "$push_output" | head -5
+                fi
             fi
         fi
+    else
+        log_info "Push disabled (RALPH_PUSH_AFTER_COMMIT=false)"
     fi
 
     echo ""
