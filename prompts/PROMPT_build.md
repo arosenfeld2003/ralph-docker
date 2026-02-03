@@ -1,6 +1,7 @@
+<!-- TEMPLATE NOTE: This is a template prompt. Update src/* below to match YOUR project structure -->
 0a. Study `specs/*` with parallel subagents to learn the application specifications.
 0b. Study @IMPLEMENTATION_PLAN.md.
-0c. For reference, the application source code is in `src/*`.
+0c. For reference, the application source code is in `src/*`. <!-- CHANGE THIS PATH TO YOUR SOURCE LOCATION -->
 
 1. Your task is to implement functionality per the specifications using parallel subagents. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address. Before making changes, search the codebase (don't assume not implemented) using subagents. Use subagents for searches/reads and for build/tests. Use additional reasoning when complex decisions are needed (debugging, architectural decisions).
 2. After implementing functionality or resolving problems, run the tests for that unit of code that was improved. If functionality is missing then it's your job to add it as per the application specifications. Think step by step carefully.
@@ -20,9 +21,11 @@
 999999999999999. IMPORTANT: Keep @AGENTS.md operational only — status updates and progress notes belong in `IMPLEMENTATION_PLAN.md`. A bloated AGENTS.md pollutes every future loop's context.
 
 <!--
-CUSTOMIZATION NOTES:
-- Adjust path references (src/*, specs/*) to match your project structure
+TEMPLATE CUSTOMIZATION REQUIRED:
+- **IMPORTANT**: Update all path references (src/*, specs/*) to match YOUR actual project structure
+- The src/* path is a PLACEHOLDER - you must change it to your source code location (e.g., app/*, lib/*, packages/*/src/*)
 - Add project-specific guardrails using the 9s numbering pattern
 - Higher numbers = more critical invariants
 - Works with Claude Code (cloud) and local models via Ollama
+- See TEMPLATE_USAGE.md for detailed setup instructions
 -->

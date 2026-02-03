@@ -1,6 +1,7 @@
 #!/bin/bash
 # Format stream-json output to human-readable format
 # Filters Claude's verbose JSON output into colored, readable text
+set -euo pipefail
 
 # Check for jq dependency
 if ! command -v jq &> /dev/null; then
@@ -25,7 +26,7 @@ MAX_CONTENT_LENGTH=500
 truncate_text() {
     local text="$1"
     local max_len="${2:-$MAX_CONTENT_LENGTH}"
-    if [ ${#text} -gt $max_len ]; then
+    if [ "${#text}" -gt "$max_len" ]; then
         echo "${text:0:$max_len}... (truncated)"
     else
         echo "$text"

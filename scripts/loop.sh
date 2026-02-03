@@ -150,7 +150,7 @@ while true; do
         exit 1
     fi
 
-    if [ $CLAUDE_EXIT -ne 0 ]; then
+    if [ "$CLAUDE_EXIT" -ne 0 ]; then
         log_warn "Claude exited with code $CLAUDE_EXIT"
         # Show some context on non-zero exit
         echo "Last output:"
@@ -162,7 +162,7 @@ while true; do
         CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
         if [ -n "$CURRENT_BRANCH" ]; then
             log_info "Pushing to origin/$CURRENT_BRANCH..."
-            local push_output
+            push_output=""
             if push_output=$(git push origin "$CURRENT_BRANCH" 2>&1); then
                 log_success "Push successful"
             elif push_output=$(git push -u origin "$CURRENT_BRANCH" 2>&1); then
