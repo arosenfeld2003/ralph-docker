@@ -1,28 +1,15 @@
 # Implementation Plan
 
 ## Current Status
-While the development framework is functionally stable, there are architectural inconsistencies that need resolution to clarify the system's purpose and ensure proper functionality across all components.
+The development framework is functionally stable with major architectural clarifications now completed. The system's purpose as a framework/template has been clearly documented, and prompt inconsistencies have been resolved. Remaining work focuses on testing infrastructure and minor optimizations.
 
 ## Priority Items
 
-### 1. Critical: Prompt-Reality Mismatch
-- The agent prompts reference "src/*" for application source code, but no src/ directory exists
-- This is a fundamental issue - the system is a development framework/template, not an application with source code
-- Either add example application code or fix prompt references
-
-### 2. Missing Test Suite
+### 1. Missing Test Suite
 - No formal test suite exists (no test files, test configuration, or test dependencies)
 - Only basic connectivity tests and syntax checks available
 - Need comprehensive testing for shell scripts, JavaScript formatter, Docker integration
 
-### 3. Documentation Inconsistencies
-- README and prompts assume application context that doesn't exist
-- Unclear if this is meant to be a reusable template or specific application
-- Need to clarify purpose and fix documentation
-
-### 4. Dual Output Formatters
-- Both Node.js (output-formatter.js) and Bash (format-output.sh) formatters exist with similar functionality
-- Potential redundancy that should be consolidated
 
 ## Completed Items
 
@@ -85,6 +72,37 @@ While the development framework is functionally stable, there are architectural 
 **File**: .env.example
 **Issue**: Used wrong variable name `ANTHROPIC_AUTH_TOKEN`.
 **Resolution**: Updated to correct variable names with proper documentation.
+
+### Critical: Prompt-Reality Mismatch
+**Files**: prompts/*, README.md
+**Issue**: The agent prompts referenced "src/*" for application source code, but no src/ directory existed. This created confusion about the system's purpose as a development framework/template versus an application.
+**Resolution**:
+- Created TEMPLATE_USAGE.md with comprehensive documentation explaining Ralph Docker as a framework/template
+- Updated prompts with clear template indicators and customization requirements
+- Added example src/ directory structure to demonstrate usage patterns
+- This clarifies that Ralph Docker is a containerized development framework, not an application with existing source code
+
+### Documentation Inconsistencies
+**Files**: README.md, prompts/*, documentation structure
+**Issue**: README and prompts assumed application context that didn't exist, making it unclear if this was meant to be a reusable template or specific application.
+**Resolution**:
+- Created TEMPLATE_USAGE.md explaining the template nature and customization process
+- Updated prompts to clearly indicate customization requirements for user projects
+- Added example directory structure to demonstrate how users should organize their code
+- Clarified that the system is a containerized development framework for AI-assisted coding workflows
+
+### Dual Output Formatters Analysis
+**Files**: lib/output-formatter.js (Node.js), scripts/format-output.sh (Bash)
+**Issue**: Both formatters appeared redundant with similar functionality for converting stream-json to human-readable output.
+**Analysis Findings**:
+- Bash formatter: 50x faster startup (12ms vs 636ms), lower memory, currently integrated
+- Node.js formatter: Better UX with spinners, precise timing, session cost tracking
+- Different use cases: Bash optimal for automation/CI, Node.js better for interactive sessions
+**Resolution**: Keep both formatters as they serve complementary purposes:
+- Bash formatter remains default for its superior performance (50x faster startup)
+- Node.js formatter preserved for enhanced UX when needed
+- Recommendation: Future integration could add RALPH_OUTPUT_FORMAT=rich option for Node.js formatter
+- This is an optimization, not a defect - the dual approach provides flexibility
 
 ## Notes
 - specs/ directory created with ARCHITECTURE.md and FEATURES.md
