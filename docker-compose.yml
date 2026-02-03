@@ -1,0 +1,62 @@
+services:
+  # OAuth mode (Max subscription) - uses ~/.claude credentials
+  ralph:
+    build: .
+    volumes:
+      # Mount the workspace (project) directory
+      - ${WORKSPACE_PATH:-.}:/home/ralph/workspace
+      # Mount Claude config directory (needs write access for debug/todos)
+      - ${CLAUDE_CONFIG:-~/.claude}:/home/ralph/.claude
+    environment:
+      - RALPH_MODE=${RALPH_MODE:-build}
+      - RALPH_MAX_ITERATIONS=${RALPH_MAX_ITERATIONS:-0}
+      - RALPH_MODEL=${RALPH_MODEL:-opus}
+      - RALPH_OUTPUT_FORMAT=${RALPH_OUTPUT_FORMAT:-pretty}
+      - RALPH_PUSH_AFTER_COMMIT=${RALPH_PUSH_AFTER_COMMIT:-true}
+    # Allow access to host network for Ollama
+    # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
+    extra_hosts:
+      - "host.docker.internal:${DOCKER_HOST_IP:-host-gateway}"
+    stdin_open: true
+    tty: true
+    restart: on-failure
+
+  # LiteLLM proxy - translates Anthropic API to Ollama format
+  litellm:
+    build:
+      context: .
+      dockerfile: litellm.Dockerfile
+    environment:
+      - OLLAMA_API_BASE=http://host.docker.internal:11434
+    # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
+    extra_hosts:
+      - "host.docker.internal:${DOCKER_HOST_IP:-host-gateway}"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - ollama
+
+  # Ollama mode (local models) - uses LiteLLM proxy to translate API calls
+  ralph-ollama:
+    extends: ralph
+    depends_on:
+      litellm:
+        condition: service_healthy
+    environment:
+      # Point to LiteLLM proxy (Anthropic-compatible endpoint)
+      - ANTHROPIC_API_KEY=sk-ralph-local
+      - ANTHROPIC_BASE_URL=http://litellm:4000
+      # Model name must match litellm config
+      - RALPH_MODEL=${RALPH_MODEL:-ollama/qwen2.5-coder:7b}
+    profiles:
+      - ollama
+    restart: on-failure
