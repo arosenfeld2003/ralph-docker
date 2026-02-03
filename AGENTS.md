@@ -4,6 +4,7 @@
 
 - **Docker**: Not available inside the container. Build/test must be done on host.
 - **Git**: Available. Use for commits and tags.
+- **Git Remote**: Not configured. Push commands will fail until remote is added.
 - **Node.js**: Available for running JavaScript files.
 
 ## Running Tests
