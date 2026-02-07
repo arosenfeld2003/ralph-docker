@@ -30,6 +30,8 @@ services:
       dockerfile: litellm.Dockerfile
     environment:
       - OLLAMA_API_BASE=http://host.docker.internal:11434
+      - LITELLM_DROP_PARAMS=true
+      - ANTHROPIC_DISABLE_THINKING=true
     # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
     extra_hosts:
       - "host.docker.internal:${DOCKER_HOST_IP:-host-gateway}"

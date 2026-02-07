@@ -191,7 +191,14 @@ while IFS= read -r line; do
             echo -e "${GREEN}  ITERATION SUMMARY${NC}"
             echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             [ -n "$duration" ] && echo -e "  Duration:   ${duration}ms ($(( duration / 1000 ))s)"
-            [ -n "$cost" ] && echo -e "  Cost:       \$$cost"
+            if [ -n "$cost" ] && [ "$cost" != "0" ]; then
+                # Check if using OAuth (Max subscription)
+                if [ -f "$HOME/.claude/.credentials.json" ] || [ -f "$HOME/.claude/credentials.json" ]; then
+                    echo -e "  API equiv:  \$$cost ${DIM}(included in Max)${NC}"
+                else
+                    echo -e "  Cost:       \$$cost"
+                fi
+            fi
             [ -n "$num_turns" ] && echo -e "  API turns:  $num_turns"
             echo -e "  Tools used: $TOOL_COUNT"
             echo -e "  Subagents:  $SUBAGENT_COUNT"

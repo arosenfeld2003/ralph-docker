@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(WORKSPACE_PATH=/Users/alexrosenfeld/qwasar_mscs_25-26/my_mouse RALPH_MODEL=\"ollama/qwen2.5-coder:7b\" docker compose:*)"
+    ]
+  }
+}

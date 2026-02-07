@@ -38,7 +38,6 @@ OPTIONS:
     -f, --fail-fast        Stop on first test failure
     -h, --help             Show this help message
     -l, --list             List available test files
-    -c, --coverage         Run tests with coverage reporting (if available)
 
 EXAMPLES:
     ./run_tests.sh                    # Run all tests
@@ -71,10 +70,6 @@ parse_args() {
             -l|--list)
                 list_tests
                 exit 0
-                ;;
-            -c|--coverage)
-                echo -e "${YELLOW}Coverage reporting not implemented yet${NC}"
-                shift
                 ;;
             -*)
                 echo -e "${RED}Unknown option: $1${NC}"

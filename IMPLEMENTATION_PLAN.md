@@ -114,6 +114,21 @@ The development framework is functionally stable with major architectural clarif
 - Test suite validates shell script functionality, JavaScript formatter behavior, and system integration points
 - Comprehensive coverage of core functionality with proper error handling and edge case testing
 
+### Missing Error Handling in test_entrypoint_functions.sh
+**File**: tests/test_entrypoint_functions.sh
+**Issue**: The file contained only a placeholder echo statement and was missing proper error handling with `set -euo pipefail`.
+**Resolution**: Completely rewrote the file with comprehensive unit tests for entrypoint.sh functions including authentication detection, logging functions, workspace verification, and configuration display. Added proper error handling and test framework consistent with other test files.
+
+### Unimplemented Coverage Reporting in run_tests.sh
+**File**: tests/run_tests.sh
+**Issue**: Coverage reporting option (-c/--coverage) was exposed in CLI but not implemented, showing a "not implemented yet" message.
+**Resolution**: Removed the unimplemented coverage option from both the command-line parsing and help text to avoid user confusion.
+
+### Generic Exception Handling in proxy.py
+**File**: proxy.py
+**Issue**: Generic catch-all exception handling masked specific errors, making debugging difficult.
+**Resolution**: Improved exception handling with specific exception types (URLError, ConnectionRefusedError, ConnectionResetError, BrokenPipeError, OSError) with appropriate error messages and HTTP status codes for better debugging.
+
 ## Notes
 - specs/ directory created with ARCHITECTURE.md and FEATURES.md
 - README serves as primary documentation

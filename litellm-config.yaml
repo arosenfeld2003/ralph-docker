@@ -5,94 +5,45 @@
 # NOTE: host.docker.internal resolves to the host machine.
 # This works on Docker Desktop (macOS/Windows) and Linux Docker 20.10+.
 # For older Linux Docker, set DOCKER_HOST_IP in your .env file.
+#
+# Only list models that are actually pulled in Ollama.
+# Check with: ollama list
 
 model_list:
-  # Qwen 2.5 Coder models (recommended for coding tasks)
-  - model_name: ollama/qwen2.5-coder:32b
-    litellm_params:
-      model: ollama/qwen2.5-coder:32b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/qwen2.5-coder:14b
-    litellm_params:
-      model: ollama/qwen2.5-coder:14b
-      api_base: http://host.docker.internal:11434
-
   - model_name: ollama/qwen2.5-coder:7b
     litellm_params:
       model: ollama/qwen2.5-coder:7b
       api_base: http://host.docker.internal:11434
+      drop_params: true
+    model_info:
+      supports_thinking: false
+      supports_extended_thinking: false
 
-  # DeepSeek Coder
-  - model_name: ollama/deepseek-coder-v2
-    litellm_params:
-      model: ollama/deepseek-coder-v2
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/deepseek-coder-v2:16b
-    litellm_params:
-      model: ollama/deepseek-coder-v2:16b
-      api_base: http://host.docker.internal:11434
-
-  # CodeLlama
-  - model_name: ollama/codellama:34b
-    litellm_params:
-      model: ollama/codellama:34b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/codellama:13b
-    litellm_params:
-      model: ollama/codellama:13b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/codellama:7b
-    litellm_params:
-      model: ollama/codellama:7b
-      api_base: http://host.docker.internal:11434
-
-  # Llama 3.x
-  - model_name: ollama/llama3.1:70b
-    litellm_params:
-      model: ollama/llama3.1:70b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/llama3.1:8b
-    litellm_params:
-      model: ollama/llama3.1:8b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/llama3.2:3b
-    litellm_params:
-      model: ollama/llama3.2:3b
-      api_base: http://host.docker.internal:11434
-
-  # Mistral / Mixtral
-  - model_name: ollama/mixtral:8x7b
-    litellm_params:
-      model: ollama/mixtral:8x7b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: ollama/mistral:7b
-    litellm_params:
-      model: ollama/mistral:7b
-      api_base: http://host.docker.internal:11434
-
-  # Devstral (Mistral's coding model)
   - model_name: ollama/devstral
     litellm_params:
       model: ollama/devstral
       api_base: http://host.docker.internal:11434
+      drop_params: true
+    model_info:
+      supports_thinking: false
+      supports_extended_thinking: false
 
   - model_name: ollama/devstral:latest
     litellm_params:
       model: ollama/devstral:latest
       api_base: http://host.docker.internal:11434
+      drop_params: true
+    model_info:
+      supports_thinking: false
+      supports_extended_thinking: false
 
 litellm_settings:
   # Drop unsupported params instead of erroring
   drop_params: true
-  # Enable streaming
-  set_verbose: false
+  # Log for debugging
+  set_verbose: true
+  # Force disable thinking for all models
+  disable_thinking: true
 
 general_settings:
   # Master key for local use (required for API access)

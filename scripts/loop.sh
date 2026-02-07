@@ -36,8 +36,17 @@ case "$MODE" in
         ;;
 esac
 
-# Check for project-specific prompts
-if [ -f "PROMPT_${MODE}.md" ]; then
+# Check if using local model (Ollama) - prefer _local variants
+IS_LOCAL_MODEL=false
+if [[ "$MODEL" == ollama/* ]] || [[ -n "${ANTHROPIC_BASE_URL:-}" && "${ANTHROPIC_BASE_URL:-}" != *"anthropic.com"* ]]; then
+    IS_LOCAL_MODEL=true
+fi
+
+# Check for project-specific prompts (prefer _local for local models)
+if [ "$IS_LOCAL_MODEL" = true ] && [ -f "PROMPT_${MODE}_local.md" ]; then
+    PROMPT_FILE="PROMPT_${MODE}_local.md"
+    log_info "Using local model prompt: $PROMPT_FILE"
+elif [ -f "PROMPT_${MODE}.md" ]; then
     PROMPT_FILE="PROMPT_${MODE}.md"
     log_info "Using project prompt: $PROMPT_FILE"
 fi
