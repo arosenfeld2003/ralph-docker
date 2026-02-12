@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y \
     ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Entire CLI for AI session observability (optional, non-blocking)
+RUN curl -fsSL https://entire.sh/install.sh | bash -s 2>/dev/null \
+    && mv /root/.local/bin/entire /usr/local/bin/entire \
+    || echo "WARNING: Entire CLI install skipped"
+
 # Install Claude Code CLI (pin to major version for stability)
 RUN npm install -g @anthropic-ai/claude-code@1
 

@@ -15,6 +15,10 @@ services:
       - RALPH_MODEL=${RALPH_MODEL:-opus}
       - RALPH_OUTPUT_FORMAT=${RALPH_OUTPUT_FORMAT:-pretty}
       - RALPH_PUSH_AFTER_COMMIT=${RALPH_PUSH_AFTER_COMMIT:-true}
+      - RALPH_ENTIRE_ENABLED=${RALPH_ENTIRE_ENABLED:-false}
+      - RALPH_ENTIRE_STRATEGY=${RALPH_ENTIRE_STRATEGY:-manual-commit}
+      - RALPH_ENTIRE_PUSH_SESSIONS=${RALPH_ENTIRE_PUSH_SESSIONS:-true}
+      - RALPH_ENTIRE_LOG_LEVEL=${RALPH_ENTIRE_LOG_LEVEL:-warn}
     # Allow access to host network for Ollama
     # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
     extra_hosts:

@@ -60,6 +60,10 @@ That's it. `ralph.sh` handles everything: setting the workspace path, extracting
 | `RALPH_OUTPUT_FORMAT` | `pretty` | `pretty` or `json` (raw) |
 | `RALPH_PUSH_AFTER_COMMIT` | `true` | Git push after commits |
 | `RALPH_DOCKER` | `~/repos/claude/claudecode/ralph-docker` | Path to this repo (set in ralph.sh) |
+| `RALPH_ENTIRE_ENABLED` | `false` | Enable Entire session tracking |
+| `RALPH_ENTIRE_STRATEGY` | `manual-commit` | `manual-commit` or `auto-commit` |
+| `RALPH_ENTIRE_PUSH_SESSIONS` | `true` | Push checkpoints branch on git push |
+| `RALPH_ENTIRE_LOG_LEVEL` | `warn` | Entire log verbosity |
 
 ### Using a .env File
 
@@ -107,6 +111,40 @@ The container's `loop.sh` checks for prompt files in this order:
 2. Built-in prompts at `/home/ralph/prompts/` (fallback)
 
 Since `/ralph` generates customized prompts in your project, those are used automatically.
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `loop` | Run the Ralph loop (default) |
+| `shell` | Start an interactive bash shell |
+| `version` | Show Claude CLI version |
+| `test` | Run connectivity tests |
+| `entire-status` | Show Entire session observability status |
+| `help` | Show help message |
+
+## Session Observability (Entire CLI)
+
+Ralph can optionally capture session metadata (prompts, responses, files modified, token usage) using [Entire CLI](https://github.com/entireio/cli). Data is stored on a shadow git branch (`entire/checkpoints/v1`), keeping your code history clean while providing a durable audit trail.
+
+### Enable
+
+```bash
+RALPH_ENTIRE_ENABLED=true ./ralph.sh
+```
+
+### How It Works
+
+- On startup, Ralph runs `entire enable` in the workspace git repo
+- Each iteration's Claude session is captured as a checkpoint
+- Checkpoints are pushed alongside code via Entire's pre-push hook (when `RALPH_PUSH_AFTER_COMMIT=true`)
+- If the Entire binary is missing or setup fails, Ralph continues normally with a warning
+
+### Check Status
+
+```bash
+docker compose run --rm ralph entire-status
+```
 
 ## Troubleshooting
 

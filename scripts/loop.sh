@@ -16,6 +16,11 @@ log_warn() { echo -e "${YELLOW}[ralph]${NC} $1"; }
 log_error() { echo -e "${RED}[ralph]${NC} $1"; }
 log_success() { echo -e "${GREEN}[ralph]${NC} $1"; }
 
+# Check if Entire CLI is available and enabled
+entire_available() {
+    [ "${RALPH_ENTIRE_ENABLED:-false}" = "true" ] && command -v entire &>/dev/null
+}
+
 # Change to workspace directory
 cd "${RALPH_WORKSPACE:-/home/ralph/workspace}"
 
@@ -199,6 +204,10 @@ while true; do
     echo ""
     echo "════════════════════════════════════════════════"
     log_success "ITERATION $ITERATION COMPLETE"
+    if entire_available; then
+        checkpoint_info=$(entire status --short 2>/dev/null) && \
+            log_info "Entire: $checkpoint_info" || true
+    fi
     echo "════════════════════════════════════════════════"
     echo ""
 

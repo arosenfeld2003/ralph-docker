@@ -191,6 +191,41 @@ test_show_config() {
     assert_contains "$config_output" "true" "show_config should show auto-push setting"
 }
 
+# Test setup_entire function
+test_setup_entire_disabled() {
+    unset RALPH_ENTIRE_ENABLED
+    local output
+    output=$(setup_entire 2>&1)
+    local result=$?
+    assert_equals "0" "$result" "setup_entire returns 0 when disabled"
+}
+
+test_setup_entire_enabled_no_binary() {
+    export RALPH_ENTIRE_ENABLED=true
+    local saved_path="$PATH"
+    export PATH="/usr/bin:/bin"
+    local output
+    output=$(setup_entire 2>&1)
+    local result=$?
+    export PATH="$saved_path"
+    assert_equals "0" "$result" "setup_entire returns 0 gracefully when binary missing"
+    assert_contains "$output" "not found" "setup_entire warns when binary missing"
+    unset RALPH_ENTIRE_ENABLED
+}
+
+# Test show_config with Entire
+test_show_config_entire() {
+    unset RALPH_ENTIRE_ENABLED
+    local config_output=$(show_config 2>&1)
+    assert_contains "$config_output" "Entire:" "show_config shows Entire label"
+    assert_contains "$config_output" "disabled" "show_config shows Entire disabled by default"
+
+    export RALPH_ENTIRE_ENABLED=true
+    config_output=$(show_config 2>&1)
+    assert_contains "$config_output" "enabled" "show_config shows Entire enabled when set"
+    unset RALPH_ENTIRE_ENABLED
+}
+
 # Main test execution
 main() {
     echo -e "${CYAN}Running Entrypoint Functions Tests${NC}"
@@ -212,6 +247,11 @@ main() {
 
     echo -e "\n${YELLOW}Testing Configuration Display${NC}"
     test_show_config
+
+    echo -e "\n${YELLOW}Testing Entire Integration${NC}"
+    test_setup_entire_disabled
+    test_setup_entire_enabled_no_binary
+    test_show_config_entire
 
     teardown
 
