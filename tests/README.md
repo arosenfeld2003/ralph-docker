@@ -52,12 +52,6 @@ The test suite covers:
 - ✅ Error detection patterns (model not found, connection errors)
 - ✅ Iteration control logic
 
-### extract-credentials.sh
-- ✅ Operating system detection (macOS vs others)
-- ✅ Directory creation with proper permissions
-- ✅ File creation and permission setting (600)
-- ✅ OAuth credential extraction workflow
-
 ### entrypoint.sh
 - ✅ Authentication mode detection (OAuth, API key, LiteLLM)
 - ✅ LiteLLM health check functionality

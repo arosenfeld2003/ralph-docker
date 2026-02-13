@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprehensive test suite for Ralph Docker shell scripts
-# Tests format-output.sh, loop.sh, extract-credentials.sh, and entrypoint.sh
+# Tests format-output.sh, loop.sh, and entrypoint.sh
 
 set -euo pipefail
 
@@ -289,66 +289,6 @@ EOF
     fi
 }
 
-# Test extract-credentials.sh functions
-test_extract_credentials() {
-    echo -e "${CYAN}Testing extract-credentials.sh functions${NC}"
-
-    # Test OS detection (simulate non-Darwin)
-    cat > test_extract.sh << 'EOF'
-#!/bin/bash
-set -euo pipefail
-
-# Mock uname to simulate non-macOS
-uname() {
-    echo "Linux"
-}
-
-# Test the OS check logic
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "Not macOS detected"
-    exit 1
-fi
-EOF
-
-    chmod +x test_extract.sh
-    assert_exit_code 1 "./test_extract.sh" "extract-credentials detects non-macOS systems"
-
-    # Test directory creation logic
-    cat > test_extract_dirs.sh << 'EOF'
-#!/bin/bash
-set -euo pipefail
-
-CREDS_FILE="/tmp/test_creds/credentials.json"
-mkdir -p "$(dirname "$CREDS_FILE")"
-echo "test creds" > "$CREDS_FILE"
-chmod 600 "$CREDS_FILE"
-
-# Check if file was created with correct permissions
-if [ -f "$CREDS_FILE" ]; then
-    perms=$(stat -c %a "$CREDS_FILE" 2>/dev/null || stat -f %A "$CREDS_FILE" 2>/dev/null || echo "600")
-    if [ "$perms" = "600" ]; then
-        echo "File created with correct permissions"
-    else
-        echo "File created with incorrect permissions: $perms"
-        exit 1
-    fi
-else
-    echo "File not created"
-    exit 1
-fi
-EOF
-
-    chmod +x test_extract_dirs.sh
-    assert_exit_code 0 "./test_extract_dirs.sh" "extract-credentials creates directories and files with correct permissions"
-
-    # Verify the actual file was created
-    assert_file_exists "/tmp/test_creds/credentials.json" "Credentials file created"
-
-    # Test file content
-    local content=$(cat /tmp/test_creds/credentials.json)
-    assert_equals "test creds" "$content" "Credentials file has correct content"
-}
-
 # Test entrypoint.sh functions
 test_entrypoint_functions() {
     echo -e "${CYAN}Testing entrypoint.sh functions${NC}"
@@ -391,14 +331,14 @@ detect_auth() {
     elif [ -n "$api_key" ] && [ -n "$base_url" ]; then
         log_info "Auth mode: API Key with custom base URL"
         return 0
-    elif [ -f "$HOME/.claude/.credentials.json" ]; then
-        log_info "Auth mode: OAuth credentials file (Max subscription)"
-        return 0
-    elif [ -f "$HOME/.claude/credentials.json" ]; then
-        log_info "Auth mode: OAuth (Max subscription)"
-        return 0
     elif [ -n "$api_key" ]; then
         log_info "Auth mode: API Key"
+        return 0
+    elif [ -f "$HOME/.claude/.credentials.json" ]; then
+        log_info "Auth mode: OAuth credentials file"
+        return 0
+    elif [ -f "$HOME/.claude/credentials.json" ]; then
+        log_info "Auth mode: OAuth credentials"
         return 0
     else
         log_error "No authentication found!"
@@ -503,7 +443,6 @@ test_integration() {
     # Test that all required scripts exist
     assert_file_exists "$SCRIPTS_DIR/format-output.sh" "format-output.sh exists"
     assert_file_exists "$SCRIPTS_DIR/loop.sh" "loop.sh exists"
-    assert_file_exists "$SCRIPTS_DIR/extract-credentials.sh" "extract-credentials.sh exists"
     assert_file_exists "$SCRIPTS_DIR/entrypoint.sh" "entrypoint.sh exists"
 
     # Test that scripts are executable
@@ -516,9 +455,6 @@ test_integration() {
 
     bash -n "$SCRIPTS_DIR/loop.sh"
     assert_exit_code 0 "bash -n $SCRIPTS_DIR/loop.sh" "loop.sh has valid syntax"
-
-    bash -n "$SCRIPTS_DIR/extract-credentials.sh"
-    assert_exit_code 0 "bash -n $SCRIPTS_DIR/extract-credentials.sh" "extract-credentials.sh has valid syntax"
 
     bash -n "$SCRIPTS_DIR/entrypoint.sh"
     assert_exit_code 0 "bash -n $SCRIPTS_DIR/entrypoint.sh" "entrypoint.sh has valid syntax"
@@ -543,8 +479,6 @@ main() {
     test_format_output
     echo ""
     test_loop_functions
-    echo ""
-    test_extract_credentials
     echo ""
     test_entrypoint_functions
     echo ""

@@ -35,7 +35,6 @@ cd ralph-docker
 - Documentation improvements
 - New test cases
 - Prompt improvements (PROMPT_build.md, PROMPT_plan.md)
-- Support for additional platforms (Linux Keychain, Windows Credential Manager)
 - Output formatter enhancements
 
 ## Code Guidelines

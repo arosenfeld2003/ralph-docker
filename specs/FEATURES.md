@@ -8,7 +8,7 @@
 - Uses Claude Code credentials from ~/.claude/
 - Requires Max subscription
 - Full model access (opus, sonnet, haiku)
-- macOS Keychain integration for secure credential extraction
+- API key or interactive login authentication
 
 **Ollama Mode (Local)**
 - Uses LiteLLM proxy for API translation
@@ -116,5 +116,5 @@
 1. **Non-root Execution**: Container runs as `ralph` user
 2. **Credential Isolation**: OAuth credentials mounted read-only
 3. **Workspace Boundaries**: Project at /home/ralph/workspace only
-4. **Cleanup on Exit**: Temporary credentials automatically removed
-5. **macOS Keychain**: No plaintext credential storage on macOS
+4. **API Key in Memory**: API keys passed via env var, never written to disk
+5. **Login Credentials**: Interactive login credentials persist in mounted `~/.claude` volume
