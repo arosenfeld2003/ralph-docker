@@ -47,6 +47,32 @@ That's it. `ralph.sh` handles everything: setting the workspace path, extracting
 - **Logged in** via `claude auth login` (credentials stored in macOS Keychain)
 - **`/ralph` skill** installed in Claude Code (generates project files)
 
+## Branch Safety
+
+Ralph **always creates a new branch** for each session:
+- Branch name: `ralph/<workspace>-<YYYYMMDD-HHMMSS>`
+- Your main/master branch is never modified directly
+- Review Ralph's changes via `git log` or create a PR to merge
+
+## Workspace Requirements
+
+Ralph mounts your project directory into the container at `/home/ralph/workspace`. This directory should be:
+
+1. **A git repository** - Ralph commits changes after each task
+2. **Self-contained** - Ralph only sees files inside the mounted directory
+3. **Have a specs/ folder** - Tells Ralph what to build
+4. **Have IMPLEMENTATION_PLAN.md** - Tells Ralph what to work on
+
+```
+your-project/           <- This gets mounted as /home/ralph/workspace
+├── .git/               <- REQUIRED: Must be a git repo
+├── specs/              <- REQUIRED: Your requirements
+│   └── feature.md
+├── IMPLEMENTATION_PLAN.md  <- REQUIRED: Task list for Ralph
+├── AGENTS.md           <- OPTIONAL: Build/test commands
+└── src/                <- Your source code (any structure)
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -183,7 +209,7 @@ claude auth login
 
 3. **Workspace Access**: Ralph has full read/write access to your mounted workspace. Don't mount sensitive directories you don't want modified.
 
-4. **Git Operations**: Ralph will commit and push to the current branch. Use a feature branch if you want to review changes before merging.
+4. **Git Operations**: Ralph automatically creates a new branch (`ralph/<workspace>-<timestamp>`) for each session. Changes are committed to this branch, never to main/master directly. Review and merge via PR when satisfied.
 
 ## Files Reference
 

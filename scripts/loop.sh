@@ -68,13 +68,47 @@ MODEL_ARG="--model $MODEL"
 # Iteration counter
 ITERATION=0
 
-# Get current branch
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+# Verify we're in a git repo
+if ! git rev-parse --git-dir &>/dev/null; then
+    log_error "Not a git repository!"
+    log_error "Initialize with: git init && git add . && git commit -m 'Initial commit'"
+    exit 1
+fi
+
+# Get the workspace name from directory
+WORKSPACE_NAME=$(basename "$(pwd)")
+
+# Create a new branch for this Ralph session
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+RALPH_BRANCH="ralph/${WORKSPACE_NAME}-${TIMESTAMP}"
+ORIGINAL_BRANCH=$(git branch --show-current 2>/dev/null || echo "HEAD")
+
+# Check for uncommitted changes
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    log_warn "Uncommitted changes detected"
+    log_info "Stashing changes before creating branch..."
+    git stash push -m "Ralph auto-stash before $RALPH_BRANCH"
+fi
+
+# Create and checkout the new branch
+log_info "Creating branch: $RALPH_BRANCH"
+if ! git checkout -b "$RALPH_BRANCH" 2>/dev/null; then
+    log_error "Failed to create branch $RALPH_BRANCH"
+    exit 1
+fi
 
 log_info "Starting loop..."
 log_info "Prompt: $PROMPT_FILE"
 log_info "Model: $MODEL"
-log_info "Branch: $CURRENT_BRANCH"
+log_info "Branch: $RALPH_BRANCH (from $ORIGINAL_BRANCH)"
+log_info "Working dir: $(pwd)"
+
+# Check for IMPLEMENTATION_PLAN.md
+if [ -f "IMPLEMENTATION_PLAN.md" ]; then
+    log_info "Found IMPLEMENTATION_PLAN.md - will continue from existing progress"
+else
+    log_warn "No IMPLEMENTATION_PLAN.md found - Ralph will create one"
+fi
 echo ""
 
 # Temp file for capturing output
@@ -91,35 +125,42 @@ format_output() {
 }
 
 # Check for critical errors in output
+# Only check the result JSON line, not the full conversation
 check_for_errors() {
     local output_file="$1"
 
-    # Check for model not found (specific LiteLLM error format)
-    if grep -q "model.*not found\|OllamaException.*not found" "$output_file" 2>/dev/null; then
-        log_error "Model not found: $MODEL"
-        echo ""
-        log_error "Available models in litellm-config.yaml:"
-        echo "  - ollama/qwen2.5-coder:7b"
-        echo "  - ollama/qwen2.5-coder:14b"
-        echo "  - ollama/qwen2.5-coder:32b"
-        echo "  - ollama/devstral"
-        echo ""
-        log_error "Make sure the model is pulled: ollama pull <model>"
-        return 1
+    # Extract just the final result line (contains "type":"result")
+    local result_line
+    result_line=$(grep '"type":"result"' "$output_file" 2>/dev/null | tail -1)
+
+    # If no result line, check for startup errors in full output
+    if [[ -z "$result_line" ]]; then
+        # Check for model not found during startup (LiteLLM specific error)
+        if grep -q "OllamaException.*not found\|litellm.*model.*not found" "$output_file" 2>/dev/null; then
+            log_error "Model not found: $MODEL"
+            echo ""
+            log_error "Available models - check litellm-config.yaml or run: ollama list"
+            return 1
+        fi
+
+        # Check for connection errors
+        if grep -q "APIConnectionError\|Connection refused\|ECONNREFUSED" "$output_file" 2>/dev/null; then
+            log_error "Connection error - is Ollama running?"
+            return 1
+        fi
     fi
 
-    # Check for connection errors (specific patterns)
-    if grep -q "APIConnectionError\|Connection refused\|ECONNREFUSED\|connect ETIMEDOUT" "$output_file" 2>/dev/null; then
-        log_error "Connection error - is Ollama running?"
-        echo ""
-        echo "Start Ollama with: ollama serve"
-        return 1
-    fi
-
-    # Check for auth errors (more specific patterns to avoid false positives)
-    if grep -q '"error".*[Ii]nvalid API key\|"error".*[Uu]nauthorized\|AuthenticationError' "$output_file" 2>/dev/null; then
-        log_error "Authentication error"
-        return 1
+    # Check result line for errors
+    if [[ -n "$result_line" ]]; then
+        if echo "$result_line" | grep -q '"is_error":true'; then
+            # Extract error message if present
+            local errors
+            errors=$(echo "$result_line" | grep -o '"errors":\[[^]]*\]' | head -1)
+            if [[ -n "$errors" ]]; then
+                log_warn "Session completed with errors"
+                # Don't fail - Ralph might have partially succeeded
+            fi
+        fi
     fi
 
     return 0
