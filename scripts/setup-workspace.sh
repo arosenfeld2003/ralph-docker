@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Graceful exit on Ctrl+C
+trap 'echo "" && echo -e "\033[0;36m[ralph]\033[0m Setup cancelled." && exit 0' INT
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -105,11 +108,18 @@ else
     echo -e "${BOLD}  Ralph Setup${NC}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
+    echo -e "  ${CYAN}Tip:${NC} Skip this interview with ${BOLD}--prompt \"...\"${NC} or ${BOLD}--prompt-file path${NC}"
+    echo -e "  ${CYAN}     Type${NC} ${BOLD}quit${NC} ${CYAN}or press Ctrl+C to exit${NC}"
+    echo ""
 
     # 1. Project goal (required)
     PROJECT_GOAL=""
     while [ -z "$PROJECT_GOAL" ]; do
         read -p "In one sentence, what is the goal of this project? " -r PROJECT_GOAL
+        if [[ "$PROJECT_GOAL" =~ ^(quit|exit|q)$ ]]; then
+            log_info "Setup cancelled."
+            exit 0
+        fi
         if [ -z "$PROJECT_GOAL" ]; then
             log_warn "Project goal is required."
         fi
@@ -118,14 +128,26 @@ else
     # 2. Tech stack (optional)
     echo ""
     read -p "What tech stack? (press Enter to auto-detect from codebase) " -r TECH_STACK
+    if [[ "$TECH_STACK" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
+    fi
 
     # 3. Build command (optional)
     echo ""
     read -p "Build command? (press Enter to auto-detect) " -r BUILD_CMD
+    if [[ "$BUILD_CMD" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
+    fi
 
     # 4. Test command (optional)
     echo ""
     read -p "Test command? (press Enter to auto-detect) " -r TEST_CMD
+    if [[ "$TEST_CMD" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
+    fi
 
     echo ""
 fi

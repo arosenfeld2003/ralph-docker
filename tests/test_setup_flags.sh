@@ -401,6 +401,56 @@ LOG_EOF
     assert_not_contains "$output" "Using provided prompt" "No prompt log when no --prompt flag"
 }
 
+# ─── Graceful exit tests ─────────────────────────────────────────────
+
+test_graceful_exit() {
+    echo -e "${CYAN}Testing graceful exit with quit/exit/q${NC}"
+
+    # Create a test script that simulates the quit check from each prompt
+    cat > "$TEST_DIR/quit_check.sh" << 'QUIT_EOF'
+#!/bin/bash
+INPUT="$1"
+if [[ "$INPUT" =~ ^(quit|exit|q)$ ]]; then
+    echo "CANCELLED"
+    exit 0
+fi
+echo "CONTINUED"
+QUIT_EOF
+    chmod +x "$TEST_DIR/quit_check.sh"
+
+    # Test: "quit" triggers exit
+    local output=$(bash "$TEST_DIR/quit_check.sh" "quit")
+    assert_equals "CANCELLED" "$output" "'quit' triggers graceful exit"
+
+    # Test: "exit" triggers exit
+    local output=$(bash "$TEST_DIR/quit_check.sh" "exit")
+    assert_equals "CANCELLED" "$output" "'exit' triggers graceful exit"
+
+    # Test: "q" triggers exit
+    local output=$(bash "$TEST_DIR/quit_check.sh" "q")
+    assert_equals "CANCELLED" "$output" "'q' triggers graceful exit"
+
+    # Test: normal input continues
+    local output=$(bash "$TEST_DIR/quit_check.sh" "Build an API")
+    assert_equals "CONTINUED" "$output" "Normal input continues setup"
+
+    # Test: "quitter" does NOT trigger exit (partial match)
+    local output=$(bash "$TEST_DIR/quit_check.sh" "quitter")
+    assert_equals "CONTINUED" "$output" "'quitter' does not trigger exit (exact match only)"
+}
+
+# ─── Ctrl+C trap test ────────────────────────────────────────────────
+
+test_ctrl_c_trap() {
+    echo -e "${CYAN}Testing Ctrl+C trap in setup script${NC}"
+
+    # Verify setup-workspace.sh contains the INT trap
+    local script_content=$(cat "$SCRIPTS_DIR/setup-workspace.sh")
+    assert_contains "$script_content" "trap " "setup-workspace.sh contains a trap"
+    assert_contains "$script_content" "INT" "setup-workspace.sh traps INT signal"
+    assert_contains "$script_content" "Setup cancelled" "INT trap shows cancellation message"
+}
+
 # ─── Main ───────────────────────────────────────────────────────────
 
 main() {
@@ -426,6 +476,10 @@ main() {
     test_script_syntax
     echo ""
     test_log_output
+    echo ""
+    test_graceful_exit
+    echo ""
+    test_ctrl_c_trap
     echo ""
 
     teardown

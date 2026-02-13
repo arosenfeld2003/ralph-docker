@@ -34,12 +34,12 @@ Setup supports two modes: **interactive** (interview-based) and **prompt-driven*
 WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup
 ```
 
-This runs a short interview (project goal, tech stack, build/test commands), then uses Claude to analyze your codebase and generate all the files Ralph needs — including `ralph.sh`.
+This runs a short interview (project goal, tech stack, build/test commands), then uses Claude to analyze your codebase and generate all the files Ralph needs — including `ralph.sh`. Type `quit` or press Ctrl+C at any prompt to exit.
 
-**Option B: Prompt-driven setup** — pass your intent directly, skip the interview:
+**Option B: Prompt-driven setup** — pass your intent directly, no questions asked:
 
 ```bash
-# Inline prompt
+# Inline prompt (skips all interview questions)
 WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup \
   --prompt "Build a REST API that ingests CSV uploads, validates against JSON schema, and stores results in PostgreSQL"
 
@@ -48,7 +48,7 @@ WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup \
   --prompt-file specs/prompt.md
 ```
 
-When `--prompt` or `--prompt-file` is provided, setup skips the interactive interview, auto-detects your tech stack and build/test commands from the codebase, and overwrites any existing Ralph files without confirmation. This makes it ideal for CI pipelines and scripted workflows.
+When `--prompt` or `--prompt-file` is provided, setup skips the interactive interview entirely, auto-detects your tech stack and build/test commands from the codebase, and overwrites any existing Ralph files without confirmation. This is the recommended approach if you've already clarified your intent (see step 2).
 
 ### 4. Run Ralph
 
