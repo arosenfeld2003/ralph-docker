@@ -29,6 +29,7 @@ RUN mkdir -p .claude/debug .claude/todos .claude/statsig workspace prompts && \
 COPY --chown=ralph:ralph scripts/ scripts/
 COPY --chown=ralph:ralph lib/ lib/
 COPY --chown=ralph:ralph prompts/ prompts/
+COPY --chown=ralph:ralph skills/ skills/
 
 # Make scripts executable
 RUN chmod +x scripts/*.sh

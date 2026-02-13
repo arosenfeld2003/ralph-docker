@@ -167,6 +167,13 @@ main() {
         entire-status)
             entire_available && entire status || log_warn "Entire not available"
             ;;
+        setup)
+            detect_auth || exit 1
+            wait_for_litellm || exit 1
+            verify_workspace
+            log_info "Starting workspace setup..."
+            exec /home/ralph/scripts/setup-workspace.sh
+            ;;
         login)
             log_info "Starting interactive Claude login..."
             exec claude auth login
@@ -190,6 +197,7 @@ Ralph Docker - Containerized Ralph Loop
 
 COMMANDS:
   loop            Run the Ralph loop (default)
+  setup           Set up a project for Ralph (interactive interview + file generation)
   login           Authenticate with Claude interactively (credentials persist in ~/.claude volume)
   shell           Start an interactive bash shell
   version         Show Claude CLI version
@@ -221,6 +229,9 @@ VOLUMES:
 EXAMPLES:
   # API key mode
   ANTHROPIC_API_KEY=sk-... docker compose run --rm ralph
+
+  # Set up a new project (interactive interview, generates all files)
+  WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup
 
   # Interactive login (one-time, credentials persist in ~/.claude volume)
   docker compose run --rm ralph login
