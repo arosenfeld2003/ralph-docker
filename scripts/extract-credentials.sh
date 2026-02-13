@@ -21,6 +21,9 @@ if [[ -z "$CREDS" ]]; then
     exit 1
 fi
 
+# Ensure directory exists
+mkdir -p "$(dirname "$CREDS_FILE")"
+
 # Write to file
 echo "$CREDS" > "$CREDS_FILE"
 chmod 600 "$CREDS_FILE"

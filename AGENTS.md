@@ -23,4 +23,7 @@ bash -n scripts/*.sh
 
 # Check syntax of JavaScript
 node --check lib/output-formatter.js
+
+# Check Entire session observability status (if enabled)
+entire status
 ```

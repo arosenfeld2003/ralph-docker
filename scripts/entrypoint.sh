@@ -72,8 +72,8 @@ wait_for_litellm() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        # Try health endpoint (LiteLLM allows unauthenticated health checks)
-        if curl -sf "${base_url}/health" &> /dev/null; then
+        # Try health endpoint with API key
+        if curl -sf -H "Authorization: Bearer ${api_key}" "${base_url}/health" &> /dev/null; then
             echo ""
             log_success "LiteLLM proxy is ready"
             return 0
@@ -98,6 +98,27 @@ verify_workspace() {
     fi
 }
 
+# Check if Entire CLI is available and enabled
+entire_available() {
+    [ "${RALPH_ENTIRE_ENABLED:-false}" = "true" ] && command -v entire &>/dev/null
+}
+
+# Set up Entire session observability (gracefully degrades if unavailable)
+setup_entire() {
+    [ "${RALPH_ENTIRE_ENABLED:-false}" != "true" ] && return 0
+    command -v entire &>/dev/null || { log_warn "Entire binary not found"; return 0; }
+    git rev-parse --git-dir &>/dev/null || { log_warn "No git repo for Entire"; return 0; }
+
+    local flags="--strategy ${RALPH_ENTIRE_STRATEGY:-manual-commit}"
+    [ "${RALPH_ENTIRE_PUSH_SESSIONS:-true}" = "false" ] && flags="$flags --skip-push-sessions"
+
+    if entire enable $flags --force 2>&1; then
+        log_success "Entire enabled (${RALPH_ENTIRE_STRATEGY:-manual-commit})"
+    else
+        log_warn "Entire enable failed, continuing without observability"
+    fi
+}
+
 # Display configuration
 show_config() {
     local base_url="${ANTHROPIC_BASE_URL:-}"
@@ -117,6 +138,13 @@ show_config() {
     echo "  Max Iter:   ${RALPH_MAX_ITERATIONS:-0} (0=unlimited)"
     echo "  Push:       ${RALPH_PUSH_AFTER_COMMIT:-true}"
     echo "  Backend:    $backend"
+    if [ "${RALPH_ENTIRE_ENABLED:-false}" = "true" ]; then
+        local entire_status="enabled (${RALPH_ENTIRE_STRATEGY:-manual-commit})"
+        command -v entire &>/dev/null || entire_status="enabled (binary missing)"
+        echo "  Entire:     $entire_status"
+    else
+        echo "  Entire:     disabled"
+    fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 }
@@ -131,8 +159,12 @@ main() {
             detect_auth || exit 1
             wait_for_litellm || exit 1
             verify_workspace
+            setup_entire
             show_config
             exec /home/ralph/scripts/loop.sh "$@"
+            ;;
+        entire-status)
+            entire_available && entire status || log_warn "Entire not available"
             ;;
         shell)
             log_info "Starting interactive shell..."
@@ -152,11 +184,12 @@ main() {
 Ralph Docker - Containerized Ralph Loop
 
 COMMANDS:
-  loop      Run the Ralph loop (default)
-  shell     Start an interactive bash shell
-  version   Show Claude CLI version
-  test      Run connectivity tests
-  help      Show this help message
+  loop            Run the Ralph loop (default)
+  shell           Start an interactive bash shell
+  version         Show Claude CLI version
+  test            Run connectivity tests
+  entire-status   Show Entire session observability status
+  help            Show this help message
 
 ENVIRONMENT VARIABLES:
   RALPH_MODE              build|plan (default: build)
@@ -164,6 +197,11 @@ ENVIRONMENT VARIABLES:
   RALPH_MODEL             Model name (default: opus, or ollama/model for local)
   RALPH_OUTPUT_FORMAT     pretty|json (default: pretty)
   RALPH_PUSH_AFTER_COMMIT Push to git after commits (default: true)
+
+  RALPH_ENTIRE_ENABLED        Enable Entire session tracking (default: false)
+  RALPH_ENTIRE_STRATEGY       manual-commit|auto-commit (default: manual-commit)
+  RALPH_ENTIRE_PUSH_SESSIONS  Push checkpoints on git push (default: true)
+  RALPH_ENTIRE_LOG_LEVEL      Entire log verbosity (default: warn)
 
 VOLUMES:
   /home/ralph/workspace   Your project directory

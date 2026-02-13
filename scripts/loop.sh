@@ -16,6 +16,14 @@ log_warn() { echo -e "${YELLOW}[ralph]${NC} $1"; }
 log_error() { echo -e "${RED}[ralph]${NC} $1"; }
 log_success() { echo -e "${GREEN}[ralph]${NC} $1"; }
 
+# Check if Entire CLI is available and enabled
+entire_available() {
+    [ "${RALPH_ENTIRE_ENABLED:-false}" = "true" ] && command -v entire &>/dev/null
+}
+
+# Change to workspace directory
+cd "${RALPH_WORKSPACE:-/home/ralph/workspace}"
+
 # Configuration from environment
 MODE="${RALPH_MODE:-build}"
 MAX_ITERATIONS="${RALPH_MAX_ITERATIONS:-0}"
@@ -33,8 +41,17 @@ case "$MODE" in
         ;;
 esac
 
-# Check for project-specific prompts
-if [ -f "PROMPT_${MODE}.md" ]; then
+# Check if using local model (Ollama) - prefer _local variants
+IS_LOCAL_MODEL=false
+if [[ "$MODEL" == ollama/* ]] || [[ -n "${ANTHROPIC_BASE_URL:-}" && "${ANTHROPIC_BASE_URL:-}" != *"anthropic.com"* ]]; then
+    IS_LOCAL_MODEL=true
+fi
+
+# Check for project-specific prompts (prefer _local for local models)
+if [ "$IS_LOCAL_MODEL" = true ] && [ -f "PROMPT_${MODE}_local.md" ]; then
+    PROMPT_FILE="PROMPT_${MODE}_local.md"
+    log_info "Using local model prompt: $PROMPT_FILE"
+elif [ -f "PROMPT_${MODE}.md" ]; then
     PROMPT_FILE="PROMPT_${MODE}.md"
     log_info "Using project prompt: $PROMPT_FILE"
 fi
@@ -51,13 +68,47 @@ MODEL_ARG="--model $MODEL"
 # Iteration counter
 ITERATION=0
 
-# Get current branch
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+# Verify we're in a git repo
+if ! git rev-parse --git-dir &>/dev/null; then
+    log_error "Not a git repository!"
+    log_error "Initialize with: git init && git add . && git commit -m 'Initial commit'"
+    exit 1
+fi
+
+# Get the workspace name from directory
+WORKSPACE_NAME=$(basename "$(pwd)")
+
+# Create a new branch for this Ralph session
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+RALPH_BRANCH="ralph/${WORKSPACE_NAME}-${TIMESTAMP}"
+ORIGINAL_BRANCH=$(git branch --show-current 2>/dev/null || echo "HEAD")
+
+# Check for uncommitted changes
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    log_warn "Uncommitted changes detected"
+    log_info "Stashing changes before creating branch..."
+    git stash push -m "Ralph auto-stash before $RALPH_BRANCH"
+fi
+
+# Create and checkout the new branch
+log_info "Creating branch: $RALPH_BRANCH"
+if ! git checkout -b "$RALPH_BRANCH" 2>/dev/null; then
+    log_error "Failed to create branch $RALPH_BRANCH"
+    exit 1
+fi
 
 log_info "Starting loop..."
 log_info "Prompt: $PROMPT_FILE"
 log_info "Model: $MODEL"
-log_info "Branch: $CURRENT_BRANCH"
+log_info "Branch: $RALPH_BRANCH (from $ORIGINAL_BRANCH)"
+log_info "Working dir: $(pwd)"
+
+# Check for IMPLEMENTATION_PLAN.md
+if [ -f "IMPLEMENTATION_PLAN.md" ]; then
+    log_info "Found IMPLEMENTATION_PLAN.md - will continue from existing progress"
+else
+    log_warn "No IMPLEMENTATION_PLAN.md found - Ralph will create one"
+fi
 echo ""
 
 # Temp file for capturing output
@@ -74,35 +125,42 @@ format_output() {
 }
 
 # Check for critical errors in output
+# Only check the result JSON line, not the full conversation
 check_for_errors() {
     local output_file="$1"
 
-    # Check for model not found (specific LiteLLM error format)
-    if grep -q "model.*not found\|OllamaException.*not found" "$output_file" 2>/dev/null; then
-        log_error "Model not found: $MODEL"
-        echo ""
-        log_error "Available models in litellm-config.yaml:"
-        echo "  - ollama/qwen2.5-coder:7b"
-        echo "  - ollama/qwen2.5-coder:14b"
-        echo "  - ollama/qwen2.5-coder:32b"
-        echo "  - ollama/devstral"
-        echo ""
-        log_error "Make sure the model is pulled: ollama pull <model>"
-        return 1
+    # Extract just the final result line (contains "type":"result")
+    local result_line
+    result_line=$(grep '"type":"result"' "$output_file" 2>/dev/null | tail -1)
+
+    # If no result line, check for startup errors in full output
+    if [[ -z "$result_line" ]]; then
+        # Check for model not found during startup (LiteLLM specific error)
+        if grep -q "OllamaException.*not found\|litellm.*model.*not found" "$output_file" 2>/dev/null; then
+            log_error "Model not found: $MODEL"
+            echo ""
+            log_error "Available models - check litellm-config.yaml or run: ollama list"
+            return 1
+        fi
+
+        # Check for connection errors
+        if grep -q "APIConnectionError\|Connection refused\|ECONNREFUSED" "$output_file" 2>/dev/null; then
+            log_error "Connection error - is Ollama running?"
+            return 1
+        fi
     fi
 
-    # Check for connection errors (specific patterns)
-    if grep -q "APIConnectionError\|Connection refused\|ECONNREFUSED\|connect ETIMEDOUT" "$output_file" 2>/dev/null; then
-        log_error "Connection error - is Ollama running?"
-        echo ""
-        echo "Start Ollama with: ollama serve"
-        return 1
-    fi
-
-    # Check for auth errors (more specific patterns to avoid false positives)
-    if grep -q '"error".*[Ii]nvalid API key\|"error".*[Uu]nauthorized\|AuthenticationError' "$output_file" 2>/dev/null; then
-        log_error "Authentication error"
-        return 1
+    # Check result line for errors
+    if [[ -n "$result_line" ]]; then
+        if echo "$result_line" | grep -q '"is_error":true'; then
+            # Extract error message if present
+            local errors
+            errors=$(echo "$result_line" | grep -o '"errors":\[[^]]*\]' | head -1)
+            if [[ -n "$errors" ]]; then
+                log_warn "Session completed with errors"
+                # Don't fail - Ralph might have partially succeeded
+            fi
+        fi
     fi
 
     return 0
@@ -150,7 +208,7 @@ while true; do
         exit 1
     fi
 
-    if [ $CLAUDE_EXIT -ne 0 ]; then
+    if [ "$CLAUDE_EXIT" -ne 0 ]; then
         log_warn "Claude exited with code $CLAUDE_EXIT"
         # Show some context on non-zero exit
         echo "Last output:"
@@ -162,20 +220,35 @@ while true; do
         CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
         if [ -n "$CURRENT_BRANCH" ]; then
             log_info "Pushing to origin/$CURRENT_BRANCH..."
-            local push_output
+            push_output=""
             if push_output=$(git push origin "$CURRENT_BRANCH" 2>&1); then
                 log_success "Push successful"
             elif push_output=$(git push -u origin "$CURRENT_BRANCH" 2>&1); then
                 log_success "Push successful (set upstream)"
             else
-                log_warn "Push failed: $push_output"
+                log_warn "Push failed (continuing anyway)"
+                # Check for common SSH issues
+                if echo "$push_output" | grep -q "authenticity of host\|Host key verification"; then
+                    log_warn "SSH host key not trusted. Run on host machine:"
+                    log_warn "  ssh-keyscan <git-host> >> ~/.ssh/known_hosts"
+                elif echo "$push_output" | grep -q "Permission denied\|publickey"; then
+                    log_warn "SSH key issue. Ensure ~/.ssh is mounted and keys have correct permissions"
+                else
+                    echo "$push_output" | head -5
+                fi
             fi
         fi
+    else
+        log_info "Push disabled (RALPH_PUSH_AFTER_COMMIT=false)"
     fi
 
     echo ""
     echo "════════════════════════════════════════════════"
     log_success "ITERATION $ITERATION COMPLETE"
+    if entire_available; then
+        checkpoint_info=$(entire status --short 2>/dev/null) && \
+            log_info "Entire: $checkpoint_info" || true
+    fi
     echo "════════════════════════════════════════════════"
     echo ""
 

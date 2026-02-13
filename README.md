@@ -1,185 +1,77 @@
 # Ralph Docker
 
-Containerized autonomous development loop using the Ralph Wiggum methodology.
+Containerized autonomous development loop using the Ralph Wiggum methodology. Ralph runs Claude Code inside Docker with your Claude subscription credentials, providing security isolation while iterating on your project.
 
-## What is Ralph?
+## How It Works
 
-Ralph is an **autonomous coding agent** that iteratively works on your project:
-
-1. Reads your specifications (`specs/*.md`)
-2. Picks a task from `IMPLEMENTATION_PLAN.md`
-3. Implements, tests, and commits
-4. Updates the plan
-5. Repeats until done
-
-This Docker setup provides:
-- **Security isolation** - Ralph runs with `--dangerously-skip-permissions`, so containerization limits blast radius
-- **Two backends** - Use Claude API (cloud) or Ollama (local models)
-- **Human-readable output** - Formatted console output instead of raw JSON
-- **macOS Keychain integration** - Seamlessly use your Max subscription
-
----
-
-## Two Operating Modes
-
-| Mode | Backend | Cost | Model Quality | Setup |
-|------|---------|------|---------------|-------|
-| **OAuth (Max)** | Claude API (cloud) | Included in Max subscription | Best (Opus) | Easy |
-| **Ollama** | Local models | Free | Good (depends on model) | Requires Ollama |
-
-### When to use each:
-
-**Use OAuth/Max when:**
-- You have a Claude Max subscription ($100/mo or $200/mo Pro)
-- You want the best model quality (Opus)
-- You're working on complex tasks requiring strong reasoning
-- Cost is not a concern (included in subscription)
-
-**Use Ollama when:**
-- You want completely free operation
-- Privacy is critical (code never leaves your machine)
-- You're okay with potentially lower quality output
-- You want unlimited iterations without any rate limits
-
----
-
-## Prerequisites
-
-### For Both Modes
-- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
-- Git
-
-### For OAuth/Max Mode (macOS only currently)
-- Claude Max subscription
-- Logged in via `claude auth login`
-- Credentials stored in macOS Keychain
-
-### For Ollama Mode
-- [Ollama](https://ollama.com) installed and running
-- At least one model pulled (e.g., `ollama pull qwen2.5-coder:7b`)
-
----
+```
+/ralph skill          ralph.sh             ralph-docker
+━━━━━━━━━━━━━        ━━━━━━━━━━━━━        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Interviews you     1. Sets workspace    1. Extracts Keychain creds
+2. Creates project       path              2. Starts Docker container
+   files:             2. Calls ralph-      3. Mounts your project
+   - AGENTS.md           docker            4. Runs Claude in a loop
+   - PROMPT_*.md                           5. Reads specs, implements,
+   - specs/                                   tests, commits
+   - ralph.sh                              6. Cleans up creds on exit
+```
 
 ## Quick Start
 
-### OAuth/Max Mode (Recommended)
+### 1. Set up your project
+
+Run the `/ralph` skill inside Claude Code in your project directory. It interviews you about your project goal, tech stack, and build commands, then generates all the files Ralph needs — including `ralph.sh`, which calls this repo.
+
+### 2. Run Ralph
 
 ```bash
-cd ~/repos/claude/claudecode/ralph-docker
+cd your-project/
 
-# Run on current directory
-./scripts/run-with-keychain.sh up ralph
-
-# Run on a specific project
-WORKSPACE_PATH=/path/to/project ./scripts/run-with-keychain.sh up ralph
-
-# Limit iterations (recommended for testing)
-WORKSPACE_PATH=/path/to/project RALPH_MAX_ITERATIONS=3 \
-  ./scripts/run-with-keychain.sh up ralph
+# Build mode (implement tasks)
+./ralph.sh
 
 # Plan mode (analyze only, don't implement)
-RALPH_MODE=plan WORKSPACE_PATH=/path/to/project \
-  ./scripts/run-with-keychain.sh up ralph
+./ralph.sh plan
+
+# Limit iterations
+./ralph.sh 5
+./ralph.sh plan 3
 ```
 
-### Ollama Mode (Local/Free)
+That's it. `ralph.sh` handles everything: setting the workspace path, extracting your Claude credentials from macOS Keychain, starting the Docker container, and running the loop.
 
-```bash
-# 1. Make sure Ollama is running
-ollama serve
+## Prerequisites
 
-# 2. Pull a model if you haven't
-ollama pull qwen2.5-coder:7b
+- **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
+- **Claude Max subscription** ($100/mo or $200/mo)
+- **Logged in** via `claude auth login` (credentials stored in macOS Keychain)
+- **`/ralph` skill** installed in Claude Code (generates project files)
 
-# 3. Run Ralph
-cd ~/repos/claude/claudecode/ralph-docker
-WORKSPACE_PATH=/path/to/project RALPH_MAX_ITERATIONS=3 \
-  docker compose --profile ollama up ralph-ollama
+## Branch Safety
+
+Ralph **always creates a new branch** for each session:
+- Branch name: `ralph/<workspace>-<YYYYMMDD-HHMMSS>`
+- Your main/master branch is never modified directly
+- Review Ralph's changes via `git log` or create a PR to merge
+
+## Workspace Requirements
+
+Ralph mounts your project directory into the container at `/home/ralph/workspace`. This directory should be:
+
+1. **A git repository** - Ralph commits changes after each task
+2. **Self-contained** - Ralph only sees files inside the mounted directory
+3. **Have a specs/ folder** - Tells Ralph what to build
+4. **Have IMPLEMENTATION_PLAN.md** - Tells Ralph what to work on
+
 ```
-
----
-
-## Setting Up Your Project
-
-Ralph expects a specific project structure:
-
-```
-your-project/
-├── specs/                    # Requirements (what to build)
+your-project/           <- This gets mounted as /home/ralph/workspace
+├── .git/               <- REQUIRED: Must be a git repo
+├── specs/              <- REQUIRED: Your requirements
 │   └── feature.md
-├── IMPLEMENTATION_PLAN.md    # Task list (what Ralph works through)
-├── AGENTS.md                 # Build/test commands (optional)
-└── src/                      # Your source code
+├── IMPLEMENTATION_PLAN.md  <- REQUIRED: Task list for Ralph
+├── AGENTS.md           <- OPTIONAL: Build/test commands
+└── src/                <- Your source code (any structure)
 ```
-
-### Example: Creating a New Project
-
-```bash
-mkdir -p ~/projects/my-app/specs
-cd ~/projects/my-app
-git init
-
-# 1. Write your spec
-cat > specs/app.md << 'EOF'
-# My App Specification
-
-## Overview
-A CLI tool that does X, Y, Z.
-
-## Requirements
-- Feature A: description
-- Feature B: description
-
-## Technical Constraints
-- Use Node.js
-- No external dependencies
-EOF
-
-# 2. Create initial implementation plan
-cat > IMPLEMENTATION_PLAN.md << 'EOF'
-# Implementation Plan
-
-## Priority Tasks
-- [ ] Set up project structure (package.json, etc.)
-- [ ] Implement Feature A
-- [ ] Implement Feature B
-- [ ] Add tests
-- [ ] Add error handling
-
-## Completed
-(Ralph will move items here as they're done)
-EOF
-
-# 3. Create AGENTS.md (tells Ralph how to build/test)
-cat > AGENTS.md << 'EOF'
-# Build & Test Commands
-
-## Install
-```bash
-npm install
-```
-
-## Test
-```bash
-npm test
-```
-
-## Run
-```bash
-node index.js
-```
-EOF
-
-# 4. Initial commit
-git add . && git commit -m "Initial project setup"
-
-# 5. Run Ralph
-cd ~/repos/claude/claudecode/ralph-docker
-WORKSPACE_PATH=~/projects/my-app RALPH_MAX_ITERATIONS=5 \
-  ./scripts/run-with-keychain.sh up ralph
-```
-
----
 
 ## Configuration
 
@@ -190,10 +82,14 @@ WORKSPACE_PATH=~/projects/my-app RALPH_MAX_ITERATIONS=5 \
 | `WORKSPACE_PATH` | `.` | Project directory to mount |
 | `RALPH_MODE` | `build` | `build` (implement) or `plan` (analyze only) |
 | `RALPH_MAX_ITERATIONS` | `0` | Max loops, 0 = unlimited |
-| `RALPH_MODEL` | `opus` | Model: `opus`, `sonnet`, `haiku`, or `ollama/model` |
+| `RALPH_MODEL` | `opus` | Model: `opus`, `sonnet`, `haiku` |
 | `RALPH_OUTPUT_FORMAT` | `pretty` | `pretty` or `json` (raw) |
 | `RALPH_PUSH_AFTER_COMMIT` | `true` | Git push after commits |
-| `DOCKER_HOST_IP` | (auto) | Linux users: set to `172.17.0.1` |
+| `RALPH_DOCKER` | `~/repos/claude/claudecode/ralph-docker` | Path to this repo (set in ralph.sh) |
+| `RALPH_ENTIRE_ENABLED` | `false` | Enable Entire session tracking |
+| `RALPH_ENTIRE_STRATEGY` | `manual-commit` | `manual-commit` or `auto-commit` |
+| `RALPH_ENTIRE_PUSH_SESSIONS` | `true` | Push checkpoints branch on git push |
+| `RALPH_ENTIRE_LOG_LEVEL` | `warn` | Entire log verbosity |
 
 ### Using a .env File
 
@@ -202,46 +98,7 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
----
-
-## Cost Considerations
-
-### OAuth/Max Mode
-
-| Subscription | Monthly Cost | What You Get |
-|--------------|--------------|--------------|
-| Claude Max | $100/month | ~45x more usage than Pro |
-| Claude Max Pro | $200/month | ~90x more usage than Pro |
-
-**Within your subscription**, Ralph usage is included. However:
-- Extended thinking and large contexts consume more of your quota
-- Running many iterations can use significant quota
-- Monitor usage at https://claude.ai/settings
-
-**Recommendation:** Start with `RALPH_MAX_ITERATIONS=3` to test, then increase.
-
-### Ollama Mode
-
-**Completely free** - models run locally on your hardware.
-
-| Model | VRAM Required | Quality |
-|-------|---------------|---------|
-| qwen2.5-coder:7b | ~5GB | Good for simple tasks |
-| qwen2.5-coder:14b | ~10GB | Better reasoning |
-| qwen2.5-coder:32b | ~20GB | Best local option |
-| devstral | ~14GB | Strong coding model |
-
-**Trade-offs:**
-- Free but slower than cloud
-- Quality varies by model
-- Requires GPU for reasonable speed
-- No rate limits
-
----
-
 ## Architecture
-
-### OAuth Mode Flow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -273,100 +130,86 @@ cp .env.example .env
                   └─────────────────┘
 ```
 
-### Ollama Mode Flow
+### Prompt Resolution
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  ralph-ollama container                                 │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │ entrypoint.sh → loop.sh → format-output.sh         ││
-│  │      │                                              ││
-│  │      ▼                                              ││
-│  │ Claude CLI                                          ││
-│  │ ANTHROPIC_BASE_URL=http://litellm:4000              ││
-│  └─────────────────────────────────────────────────────┘│
-└──────────────────────────┼──────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  litellm container                                      │
-│  Translates Anthropic API format → Ollama API format    │
-└──────────────────────────┼──────────────────────────────┘
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │  Ollama         │
-                  │  (host machine) │
-                  └─────────────────┘
+The container's `loop.sh` checks for prompt files in this order:
+1. `PROMPT_build.md` / `PROMPT_plan.md` in the mounted workspace (your project)
+2. Built-in prompts at `/home/ralph/prompts/` (fallback)
+
+Since `/ralph` generates customized prompts in your project, those are used automatically.
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `loop` | Run the Ralph loop (default) |
+| `shell` | Start an interactive bash shell |
+| `version` | Show Claude CLI version |
+| `test` | Run connectivity tests |
+| `entire-status` | Show Entire session observability status |
+| `help` | Show help message |
+
+## Session Observability (Entire CLI)
+
+Ralph can optionally capture session metadata (prompts, responses, files modified, token usage) using [Entire CLI](https://github.com/entireio/cli). Data is stored on a shadow git branch (`entire/checkpoints/v1`), keeping your code history clean while providing a durable audit trail.
+
+### Enable
+
+```bash
+RALPH_ENTIRE_ENABLED=true ./ralph.sh
 ```
 
----
+### How It Works
+
+- On startup, Ralph runs `entire enable` in the workspace git repo
+- Each iteration's Claude session is captured as a checkpoint
+- Checkpoints are pushed alongside code via Entire's pre-push hook (when `RALPH_PUSH_AFTER_COMMIT=true`)
+- If the Entire binary is missing or setup fails, Ralph continues normally with a warning
+
+### Check Status
+
+```bash
+docker compose run --rm ralph entire-status
+```
 
 ## Troubleshooting
 
-### OAuth Mode Issues
-
 **"Could not find Claude credentials in Keychain"**
 ```bash
-# Log in first
 claude auth login
 ```
 
 **"No authentication found"**
-- Make sure you're using `./scripts/run-with-keychain.sh`, not plain `docker compose`
-- The script extracts credentials from Keychain and makes them available to Docker
+- Make sure you're using `./ralph.sh` or `./scripts/run-with-keychain.sh`, not plain `docker compose`
 
-**Container can't write to ~/.claude**
-- The volume mount needs write access for Claude CLI to store session data
-- Check Docker has permission to access your home directory
-
-### Ollama Mode Issues
-
-**"Model not found"**
-```bash
-# Check what models you have
-ollama list
-
-# Pull the model you need
-ollama pull qwen2.5-coder:7b
-
-# Make sure model name matches litellm-config.yaml
-# Use format: ollama/model-name:tag
-```
-
-**"Connection refused" / "Cannot connect to Ollama"**
-```bash
-# Make sure Ollama is running
-ollama serve
-
-# On Linux, you may need to set DOCKER_HOST_IP
-DOCKER_HOST_IP=172.17.0.1 docker compose --profile ollama up ralph-ollama
-```
-
-**LiteLLM healthcheck fails**
-```bash
-# Check LiteLLM logs
-docker compose --profile ollama logs litellm
-
-# Verify Ollama is reachable from container
-docker compose --profile ollama run --rm litellm curl http://host.docker.internal:11434/api/tags
-```
-
-### General Issues
-
-**"Prompt file not found"**
-- Ralph looks for `PROMPT_build.md` or `PROMPT_plan.md` in the workspace first
-- Falls back to built-in prompts at `/home/ralph/prompts/`
+**"ralph-docker not found"**
+- `ralph.sh` looks for this repo at `$HOME/repos/claude/claudecode/ralph-docker` by default
+- Override with: `export RALPH_DOCKER=/path/to/ralph-docker`
 
 **Git push fails**
-- Ralph tries to push after commits
-- If there's no remote or you don't want this: `RALPH_PUSH_AFTER_COMMIT=false`
+- Set `RALPH_PUSH_AFTER_COMMIT=false` if there's no remote or you don't want auto-push
 
 **Loop runs forever**
 - Set `RALPH_MAX_ITERATIONS=N` to limit iterations
 - Use Ctrl+C to stop manually
 
----
+**"Prompt file not found"**
+- Ralph looks for `PROMPT_build.md` or `PROMPT_plan.md` in the workspace first
+- Falls back to built-in prompts at `/home/ralph/prompts/`
+
+## Security
+
+1. **Container Isolation**: Ralph runs with `--dangerously-skip-permissions` which auto-approves all tool calls. The container limits blast radius to the mounted workspace.
+
+2. **Credential Handling**:
+   - OAuth tokens are extracted from Keychain temporarily
+   - Written to `~/.claude/.credentials.json` only during container run
+   - Automatically cleaned up when container stops
+   - File has 600 permissions (owner read/write only)
+
+3. **Workspace Access**: Ralph has full read/write access to your mounted workspace. Don't mount sensitive directories you don't want modified.
+
+4. **Git Operations**: Ralph automatically creates a new branch (`ralph/<workspace>-<timestamp>`) for each session. Changes are committed to this branch, never to main/master directly. Review and merge via PR when satisfied.
 
 ## Files Reference
 
@@ -374,8 +217,6 @@ docker compose --profile ollama run --rm litellm curl http://host.docker.interna
 ralph-docker/
 ├── Dockerfile              # Main container image
 ├── docker-compose.yml      # Service definitions
-├── litellm.Dockerfile      # LiteLLM proxy image
-├── litellm-config.yaml     # Ollama model mappings
 ├── .env.example            # Configuration template
 ├── scripts/
 │   ├── entrypoint.sh       # Container startup
@@ -386,43 +227,88 @@ ralph-docker/
 ├── lib/
 │   └── output-formatter.js # Rich output formatter (Node.js)
 └── prompts/
-    ├── PROMPT_build.md     # Build mode instructions
-    └── PROMPT_plan.md      # Plan mode instructions
+    ├── PROMPT_build.md     # Build mode instructions (fallback)
+    └── PROMPT_plan.md      # Plan mode instructions (fallback)
 ```
 
----
+## Tips
 
-## Security Notes
-
-1. **Container Isolation**: Ralph runs with `--dangerously-skip-permissions` which auto-approves all tool calls. The container provides isolation so Ralph can only affect the mounted workspace.
-
-2. **Credential Handling**:
-   - OAuth tokens are extracted from Keychain temporarily
-   - Written to `~/.claude/.credentials.json` only during container run
-   - Automatically cleaned up when container stops
-   - File has 600 permissions (owner read/write only)
-
-3. **Workspace Access**: Ralph has full read/write access to your mounted workspace. Don't mount sensitive directories you don't want modified.
-
-4. **Git Operations**: Ralph will commit and push to the current branch. Use a feature branch if you want to review changes before merging.
-
----
-
-## Tips for Best Results
-
-1. **Write clear specs**: The better your `specs/*.md` files, the better Ralph performs
-
-2. **Start small**: Begin with `RALPH_MAX_ITERATIONS=1` to see what Ralph does
-
+1. **Start with plan mode**: Run `./ralph.sh plan 1` to see Ralph's analysis before implementing
+2. **Limit iterations**: Use `./ralph.sh 3` to test with a few iterations first
 3. **Review commits**: Check git history to see what Ralph changed
+4. **Write clear specs**: The better your `specs/*.md` files, the better Ralph performs
+5. **Keep IMPLEMENTATION_PLAN.md updated**: Ralph reads and writes this file to track progress
 
-4. **Use plan mode first**: Run with `RALPH_MODE=plan` to see Ralph's analysis before implementing
+<details>
+<summary><strong>Advanced: Local Models (Ollama)</strong></summary>
 
-5. **Provide AGENTS.md**: Tell Ralph how to build and test your project
+Ralph-docker also supports running with local models via Ollama and LiteLLM, though this is experimental and not recommended for production use.
 
-6. **Keep IMPLEMENTATION_PLAN.md updated**: Ralph reads and writes this file to track progress
+### Prerequisites
 
----
+- [Ollama](https://ollama.com) installed and running
+- At least one model pulled (e.g., `ollama pull qwen2.5-coder:7b`)
+
+### Usage
+
+```bash
+# 1. Make sure Ollama is running
+ollama serve
+
+# 2. Pull a model
+ollama pull qwen2.5-coder:7b
+
+# 3. Run with the ollama profile
+cd ~/repos/claude/claudecode/ralph-docker
+WORKSPACE_PATH=/path/to/project RALPH_MAX_ITERATIONS=3 \
+  docker compose --profile ollama up ralph-ollama
+```
+
+### Available Models
+
+| Model | VRAM Required | Quality |
+|-------|---------------|---------|
+| qwen2.5-coder:7b | ~5GB | Good for simple tasks |
+| qwen2.5-coder:14b | ~10GB | Better reasoning |
+| qwen2.5-coder:32b | ~20GB | Best local option |
+| devstral | ~14GB | Strong coding model |
+
+### Known Limitations
+
+- Local models cannot reliably drive Claude Code's tool-use protocol
+- Models output JSON text but don't actually call tools (Read, Edit, Write, etc.)
+- This path exists for future improvement as local models get better at tool use
+
+### Ollama Architecture
+
+```
+ralph-ollama container → litellm container → Ollama (host)
+```
+
+LiteLLM translates the Anthropic API format to Ollama's API format. Configuration is in `litellm-config.yaml`.
+
+### Ollama Troubleshooting
+
+**"Model not found"**
+```bash
+ollama list                    # Check available models
+ollama pull qwen2.5-coder:7b  # Pull what you need
+```
+
+**"Connection refused"**
+```bash
+ollama serve                   # Make sure Ollama is running
+
+# On Linux, set the Docker host IP
+DOCKER_HOST_IP=172.17.0.1 docker compose --profile ollama up ralph-ollama
+```
+
+**LiteLLM healthcheck fails**
+```bash
+docker compose --profile ollama logs litellm
+```
+
+</details>
 
 ## License
 

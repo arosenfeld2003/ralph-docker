@@ -53,8 +53,20 @@ log_success "Credentials written to $CREDS_FILE"
 # Change to ralph-docker directory
 cd "$RALPH_DOCKER_DIR"
 
+# Export RALPH_* environment variables so docker compose can use them
+export RALPH_MODE="${RALPH_MODE:-build}"
+export RALPH_MAX_ITERATIONS="${RALPH_MAX_ITERATIONS:-0}"
+export RALPH_MODEL="${RALPH_MODEL:-opus}"
+export RALPH_OUTPUT_FORMAT="${RALPH_OUTPUT_FORMAT:-pretty}"
+export RALPH_PUSH_AFTER_COMMIT="${RALPH_PUSH_AFTER_COMMIT:-true}"
+export WORKSPACE_PATH="${WORKSPACE_PATH:-.}"
+
 # Run docker compose (not exec, so cleanup runs after)
 log_info "Starting Ralph with Max subscription credentials..."
+log_info "  Mode: $RALPH_MODE"
+log_info "  Max Iterations: $RALPH_MAX_ITERATIONS (0=unlimited)"
+log_info "  Model: $RALPH_MODEL"
+log_info "  Workspace: $WORKSPACE_PATH"
 docker compose "$@"
 EXIT_CODE=$?
 

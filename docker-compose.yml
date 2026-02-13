@@ -7,12 +7,18 @@ services:
       - ${WORKSPACE_PATH:-.}:/home/ralph/workspace
       # Mount Claude config directory (needs write access for debug/todos)
       - ${CLAUDE_CONFIG:-~/.claude}:/home/ralph/.claude
+      # Mount SSH keys for git push (read-only)
+      - ${SSH_DIR:-~/.ssh}:/home/ralph/.ssh:ro
     environment:
       - RALPH_MODE=${RALPH_MODE:-build}
       - RALPH_MAX_ITERATIONS=${RALPH_MAX_ITERATIONS:-0}
       - RALPH_MODEL=${RALPH_MODEL:-opus}
       - RALPH_OUTPUT_FORMAT=${RALPH_OUTPUT_FORMAT:-pretty}
       - RALPH_PUSH_AFTER_COMMIT=${RALPH_PUSH_AFTER_COMMIT:-true}
+      - RALPH_ENTIRE_ENABLED=${RALPH_ENTIRE_ENABLED:-false}
+      - RALPH_ENTIRE_STRATEGY=${RALPH_ENTIRE_STRATEGY:-manual-commit}
+      - RALPH_ENTIRE_PUSH_SESSIONS=${RALPH_ENTIRE_PUSH_SESSIONS:-true}
+      - RALPH_ENTIRE_LOG_LEVEL=${RALPH_ENTIRE_LOG_LEVEL:-warn}
     # Allow access to host network for Ollama
     # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
     extra_hosts:
@@ -28,6 +34,8 @@ services:
       dockerfile: litellm.Dockerfile
     environment:
       - OLLAMA_API_BASE=http://host.docker.internal:11434
+      - LITELLM_DROP_PARAMS=true
+      - ANTHROPIC_DISABLE_THINKING=true
     # Linux users: set DOCKER_HOST_IP=172.17.0.1 (or your docker0 bridge IP)
     extra_hosts:
       - "host.docker.internal:${DOCKER_HOST_IP:-host-gateway}"
@@ -37,7 +45,7 @@ services:
       - ./litellm-config.yaml:/app/config.yaml
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      test: ["CMD", "curl", "-f", "-H", "Authorization: Bearer sk-ralph-local", "http://localhost:4000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
