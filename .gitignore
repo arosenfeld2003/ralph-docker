@@ -7,3 +7,5 @@
 # Credentials
 .credentials.json
 credentials.json
+
+/.idea

@@ -1,6 +1,6 @@
 # Ralph Docker
 
-Containerized autonomous development loop using the Ralph Wiggum methodology. Ralph runs Claude Code inside Docker with your Claude subscription credentials, providing security isolation while iterating on your project.
+Containerized autonomous development loop using the [Ralph Wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) methodology. Ralph runs Claude Code inside Docker with your Claude subscription credentials, providing security isolation while iterating on your project.
 
 ## How It Works
 
