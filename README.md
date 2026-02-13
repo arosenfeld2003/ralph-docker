@@ -16,21 +16,39 @@ docker compose run --rm ralph login
 
 ### 2. Clarify your intent
 
-Before running `setup`, have a short conversation with Claude (or any LLM) to sharpen your project goal into a clear, one-sentence statement. The `setup` interview asks "What is the goal of this project?" — and the quality of Ralph's specs, plans, and prompts depends directly on how precise your answer is.
+The quality of Ralph's specs, plans, and prompts depends directly on how precise your project description is.
 
 Good: *"Build a REST API that ingests CSV uploads, validates them against a JSON schema, and stores the results in PostgreSQL"*
 
 Vague: *"Make a data processing app"*
 
-A five-minute chat to nail down scope, tech stack preferences, and success criteria saves hours of Ralph iterating in the wrong direction.
+A five-minute chat with Claude (or any LLM) to nail down scope, tech stack preferences, and success criteria saves hours of Ralph iterating in the wrong direction.
 
 ### 3. Set up your project
+
+Setup supports two modes: **interactive** (interview-based) and **prompt-driven** (fully automated).
+
+**Option A: Interactive setup** — answers 4 questions in the terminal:
 
 ```bash
 WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup
 ```
 
 This runs a short interview (project goal, tech stack, build/test commands), then uses Claude to analyze your codebase and generate all the files Ralph needs — including `ralph.sh`.
+
+**Option B: Prompt-driven setup** — pass your intent directly, skip the interview:
+
+```bash
+# Inline prompt
+WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup \
+  --prompt "Build a REST API that ingests CSV uploads, validates against JSON schema, and stores results in PostgreSQL"
+
+# Or from a file in your workspace
+WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup \
+  --prompt-file specs/prompt.md
+```
+
+When `--prompt` or `--prompt-file` is provided, setup skips the interactive interview, auto-detects your tech stack and build/test commands from the codebase, and overwrites any existing Ralph files without confirmation. This makes it ideal for CI pipelines and scripted workflows.
 
 ### 4. Run Ralph
 
@@ -127,14 +145,14 @@ When `RALPH_PUSH_AFTER_COMMIT=true` (the default), Entire checkpoints are pushed
 ## How It Works
 
 ```
-setup                          loop
-━━━━━━━━━━━━━━━━━━━━━          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Interviews you (shell)      1. Reads specs & plan from disk
-2. Passes answers to Claude    2. Picks highest-priority task
-3. Claude analyzes codebase    3. Implements, tests, commits
-4. Generates project files:    4. Updates IMPLEMENTATION_PLAN.md
-   - AGENTS.md                 5. Pushes to branch
-   - PROMPT_*.md               6. Repeats with fresh context
+setup (interactive)            setup (--prompt/--prompt-file)     loop
+━━━━━━━━━━━━━━━━━━━━━          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Interviews you (shell)      1. Reads prompt text/file          1. Reads specs & plan
+2. Passes answers to Claude    2. Auto-detects stack/build/test   2. Picks highest-priority task
+3. Claude analyzes codebase    3. Claude analyzes codebase        3. Implements, tests, commits
+4. Generates project files:    4. Generates project files:        4. Updates IMPLEMENTATION_PLAN.md
+   - AGENTS.md                    (same as interactive)            5. Pushes to branch
+   - PROMPT_*.md                                                   6. Repeats with fresh context
    - specs/
    - IMPLEMENTATION_PLAN.md
    - ralph.sh
@@ -177,13 +195,22 @@ your-project/           <- Mount as /home/ralph/workspace
 | Command | Description |
 |---------|-------------|
 | `loop` | Run the Ralph loop (default) |
-| `setup` | Set up a project for Ralph (interactive interview + file generation) |
+| `setup` | Set up a project for Ralph (interactive or prompt-driven, see [Setup flags](#setup-flags)) |
 | `login` | Authenticate with Claude interactively (persists in `~/.claude` volume) |
 | `shell` | Start an interactive bash shell |
 | `version` | Show Claude CLI version |
 | `test` | Run connectivity tests |
 | `entire-status` | Show Entire session observability status |
 | `help` | Show help message |
+
+### Setup flags
+
+| Flag | Description |
+|------|-------------|
+| `--prompt "text"` | Provide a detailed project prompt inline. Skips the interactive interview, auto-detects tech stack/build/test commands, and overwrites existing Ralph files without confirmation. |
+| `--prompt-file path` | Read the project prompt from a file (path relative to workspace). Same behavior as `--prompt`. |
+
+When neither flag is provided, setup runs the interactive interview (project goal, tech stack, build command, test command).
 
 ## Configuration
 
@@ -290,7 +317,7 @@ ralph-docker/
 ├── scripts/
 │   ├── entrypoint.sh       # Container startup & command routing
 │   ├── loop.sh             # Main Ralph loop
-│   ├── setup-workspace.sh  # Interactive project setup
+│   ├── setup-workspace.sh  # Project setup (interactive or prompt-driven)
 │   └── format-output.sh    # JSON → human readable
 ├── skills/
 │   └── ralph.md            # Setup template (used by setup command)
@@ -303,7 +330,7 @@ ralph-docker/
 
 ## Tips
 
-1. **Run setup first**: `WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup` to generate all project files
+1. **Run setup first**: `WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup` to generate all project files. Use `--prompt "..."` or `--prompt-file specs/prompt.md` to skip the interview
 2. **Enable Entire**: `RALPH_ENTIRE_ENABLED=true` gives you full session history — see exactly what Claude did and why
 3. **Start with plan mode**: Run `./ralph.sh plan 1` to see Ralph's analysis before implementing
 4. **Limit iterations**: Use `./ralph.sh 3` to test with a few iterations first
