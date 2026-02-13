@@ -1,28 +1,44 @@
 # Ralph Docker
 
-Containerized autonomous development loop using the [Ralph Wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) methodology. Ralph runs Claude Code inside Docker with your Claude subscription credentials, providing security isolation while iterating on your project.
+Containerized autonomous development loop using the [Ralph Wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) methodology. Point it at any git repo, run `setup`, and Ralph takes over — planning, implementing, testing, and committing in a loop.
 
 ## How It Works
 
 ```
-/ralph skill          ralph.sh             ralph-docker
-━━━━━━━━━━━━━        ━━━━━━━━━━━━━        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Interviews you     1. Sets workspace    1. Authenticates (API key or login)
-2. Creates project       path              2. Starts Docker container
-   files:             2. Calls ralph-      3. Mounts your project
-   - AGENTS.md           docker            4. Runs Claude in a loop
-   - PROMPT_*.md                           5. Reads specs, implements,
-   - specs/                                   tests, commits
+setup                          loop
+━━━━━━━━━━━━━━━━━━━━━          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Interviews you (shell)      1. Reads specs & plan from disk
+2. Passes answers to Claude    2. Picks highest-priority task
+3. Claude analyzes codebase    3. Implements, tests, commits
+4. Generates project files:    4. Updates IMPLEMENTATION_PLAN.md
+   - AGENTS.md                 5. Pushes to branch
+   - PROMPT_*.md               6. Repeats with fresh context
+   - specs/
+   - IMPLEMENTATION_PLAN.md
    - ralph.sh
 ```
 
 ## Quick Start
 
-### 1. Set up your project
+### 1. Authenticate
 
-Run the `/ralph` skill inside Claude Code in your project directory. It interviews you about your project goal, tech stack, and build commands, then generates all the files Ralph needs — including `ralph.sh`, which calls this repo.
+```bash
+# Option A: API key (simplest)
+export ANTHROPIC_API_KEY=sk-ant-...
 
-### 2. Run Ralph
+# Option B: Interactive login (one-time, credentials persist in ~/.claude volume)
+docker compose run --rm ralph login
+```
+
+### 2. Set up your project
+
+```bash
+WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup
+```
+
+This runs a short interview (project goal, tech stack, build/test commands), then uses Claude to analyze your codebase and generate all the files Ralph needs — including `ralph.sh`.
+
+### 3. Run Ralph
 
 ```bash
 cd your-project/
@@ -44,14 +60,6 @@ That's it. `ralph.sh` handles everything: setting the workspace path, starting t
 
 - **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
 - **Anthropic API key** or **Claude Max subscription**
-- **`/ralph` skill** installed in Claude Code (generates project files)
-
-### Authentication
-
-Choose one:
-
-1. **API key** (simplest): Set `ANTHROPIC_API_KEY` environment variable
-2. **Interactive login**: Run `docker compose run --rm ralph login` — credentials persist in the mounted `~/.claude` volume
 
 ## Branch Safety
 
@@ -62,20 +70,18 @@ Ralph **always creates a new branch** for each session:
 
 ## Workspace Requirements
 
-Ralph mounts your project directory into the container at `/home/ralph/workspace`. This directory should be:
-
-1. **A git repository** - Ralph commits changes after each task
-2. **Self-contained** - Ralph only sees files inside the mounted directory
-3. **Have a specs/ folder** - Tells Ralph what to build
-4. **Have IMPLEMENTATION_PLAN.md** - Tells Ralph what to work on
+Your project directory just needs to be a **git repository**. Everything else is created by `setup`:
 
 ```
-your-project/           <- This gets mounted as /home/ralph/workspace
-├── .git/               <- REQUIRED: Must be a git repo
-├── specs/              <- REQUIRED: Your requirements
+your-project/           <- Mount as /home/ralph/workspace
+├── .git/               <- Required: must be a git repo
+├── specs/              <- Created by setup
 │   └── feature.md
-├── IMPLEMENTATION_PLAN.md  <- REQUIRED: Task list for Ralph
-├── AGENTS.md           <- OPTIONAL: Build/test commands
+├── AGENTS.md           <- Created by setup
+├── IMPLEMENTATION_PLAN.md  <- Created by setup
+├── PROMPT_plan.md      <- Created by setup
+├── PROMPT_build.md     <- Created by setup
+├── ralph.sh            <- Created by setup
 └── src/                <- Your source code (any structure)
 ```
 
@@ -141,13 +147,14 @@ The container's `loop.sh` checks for prompt files in this order:
 1. `PROMPT_build.md` / `PROMPT_plan.md` in the mounted workspace (your project)
 2. Built-in prompts at `/home/ralph/prompts/` (fallback)
 
-Since `/ralph` generates customized prompts in your project, those are used automatically.
+The `setup` command generates customized prompts in your project, so those are used automatically.
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
 | `loop` | Run the Ralph loop (default) |
+| `setup` | Set up a project for Ralph (interactive interview + file generation) |
 | `login` | Authenticate with Claude interactively (persists in `~/.claude` volume) |
 | `shell` | Start an interactive bash shell |
 | `version` | Show Claude CLI version |
@@ -225,9 +232,12 @@ ralph-docker/
 ├── docker-compose.yml      # Service definitions
 ├── .env.example            # Configuration template
 ├── scripts/
-│   ├── entrypoint.sh       # Container startup
+│   ├── entrypoint.sh       # Container startup & command routing
 │   ├── loop.sh             # Main Ralph loop
+│   ├── setup-workspace.sh  # Interactive project setup
 │   └── format-output.sh    # JSON → human readable
+├── skills/
+│   └── ralph.md            # Setup template (used by setup command)
 ├── lib/
 │   └── output-formatter.js # Rich output formatter (Node.js)
 └── prompts/
@@ -237,11 +247,12 @@ ralph-docker/
 
 ## Tips
 
-1. **Start with plan mode**: Run `./ralph.sh plan 1` to see Ralph's analysis before implementing
-2. **Limit iterations**: Use `./ralph.sh 3` to test with a few iterations first
-3. **Review commits**: Check git history to see what Ralph changed
-4. **Write clear specs**: The better your `specs/*.md` files, the better Ralph performs
-5. **Keep IMPLEMENTATION_PLAN.md updated**: Ralph reads and writes this file to track progress
+1. **Run setup first**: `WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup` to generate all project files
+2. **Start with plan mode**: Run `./ralph.sh plan 1` to see Ralph's analysis before implementing
+3. **Limit iterations**: Use `./ralph.sh 3` to test with a few iterations first
+4. **Review commits**: Check git history to see what Ralph changed
+5. **Write clear specs**: The better your `specs/*.md` files, the better Ralph performs
+6. **Keep IMPLEMENTATION_PLAN.md updated**: Ralph reads and writes this file to track progress
 
 <details>
 <summary><strong>Advanced: Local Models (Ollama)</strong></summary>
