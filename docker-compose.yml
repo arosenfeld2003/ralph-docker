@@ -1,15 +1,17 @@
 services:
-  # OAuth mode (Max subscription) - uses ~/.claude credentials
+  # Ralph - containerized autonomous development loop
+  # Auth: ANTHROPIC_API_KEY env var, or `docker compose run --rm ralph login`
   ralph:
     build: .
     volumes:
       # Mount the workspace (project) directory
       - ${WORKSPACE_PATH:-.}:/home/ralph/workspace
-      # Mount Claude config directory (needs write access for debug/todos)
+      # Mount Claude config directory (needs write access for debug/todos and login credentials)
       - ${CLAUDE_CONFIG:-~/.claude}:/home/ralph/.claude
       # Mount SSH keys for git push (read-only)
       - ${SSH_DIR:-~/.ssh}:/home/ralph/.ssh:ro
     environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - RALPH_MODE=${RALPH_MODE:-build}
       - RALPH_MAX_ITERATIONS=${RALPH_MAX_ITERATIONS:-0}
       - RALPH_MODEL=${RALPH_MODEL:-opus}

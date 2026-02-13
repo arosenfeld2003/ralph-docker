@@ -39,18 +39,19 @@ detect_auth() {
     elif [ -n "$api_key" ] && [ -n "$base_url" ]; then
         log_info "Auth mode: API Key with custom base URL"
         return 0
-    elif [ -f "$HOME/.claude/.credentials.json" ]; then
-        log_info "Auth mode: OAuth credentials file (Max subscription)"
-        return 0
-    elif [ -f "$HOME/.claude/credentials.json" ]; then
-        log_info "Auth mode: OAuth (Max subscription)"
-        return 0
     elif [ -n "$api_key" ]; then
         log_info "Auth mode: API Key"
         return 0
+    elif [ -f "$HOME/.claude/.credentials.json" ]; then
+        log_info "Auth mode: OAuth credentials file"
+        return 0
+    elif [ -f "$HOME/.claude/credentials.json" ]; then
+        log_info "Auth mode: OAuth credentials"
+        return 0
     else
         log_error "No authentication found!"
-        log_error "For OAuth on macOS: Use ./scripts/run-with-keychain.sh"
+        log_error "Option 1: Set ANTHROPIC_API_KEY environment variable"
+        log_error "Option 2: Run 'docker compose run --rm ralph login' to authenticate interactively"
         log_error "For Ollama: Use --profile ollama with docker compose"
         return 1
     fi
@@ -166,6 +167,10 @@ main() {
         entire-status)
             entire_available && entire status || log_warn "Entire not available"
             ;;
+        login)
+            log_info "Starting interactive Claude login..."
+            exec claude auth login
+            ;;
         shell)
             log_info "Starting interactive shell..."
             exec /bin/bash
@@ -185,13 +190,19 @@ Ralph Docker - Containerized Ralph Loop
 
 COMMANDS:
   loop            Run the Ralph loop (default)
+  login           Authenticate with Claude interactively (credentials persist in ~/.claude volume)
   shell           Start an interactive bash shell
   version         Show Claude CLI version
   test            Run connectivity tests
   entire-status   Show Entire session observability status
   help            Show this help message
 
+AUTHENTICATION:
+  Option 1: ANTHROPIC_API_KEY environment variable
+  Option 2: docker compose run --rm ralph login (interactive, persists in ~/.claude volume)
+
 ENVIRONMENT VARIABLES:
+  ANTHROPIC_API_KEY       Anthropic API key (simplest auth method)
   RALPH_MODE              build|plan (default: build)
   RALPH_MAX_ITERATIONS    Max iterations, 0=unlimited (default: 0)
   RALPH_MODEL             Model name (default: opus, or ollama/model for local)
@@ -205,10 +216,16 @@ ENVIRONMENT VARIABLES:
 
 VOLUMES:
   /home/ralph/workspace   Your project directory
-  /home/ralph/.claude     Claude credentials (read-only)
+  /home/ralph/.claude     Claude credentials and config
 
 EXAMPLES:
-  # OAuth mode (Max subscription)
+  # API key mode
+  ANTHROPIC_API_KEY=sk-... docker compose run --rm ralph
+
+  # Interactive login (one-time, credentials persist in ~/.claude volume)
+  docker compose run --rm ralph login
+
+  # After login, just run
   docker compose up ralph
 
   # Ollama mode (local models via LiteLLM proxy)
@@ -216,9 +233,6 @@ EXAMPLES:
 
   # Plan mode with 5 iterations
   RALPH_MODE=plan RALPH_MAX_ITERATIONS=5 docker compose up ralph
-
-  # Use a different Ollama model
-  RALPH_MODEL=ollama/qwen2.5-coder:7b docker compose --profile ollama up ralph-ollama
 
   # Interactive shell for debugging
   docker compose run --rm ralph shell

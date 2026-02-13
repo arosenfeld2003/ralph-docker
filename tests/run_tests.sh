@@ -254,7 +254,6 @@ generate_report() {
         echo "Test coverage includes:"
         echo "  ✓ format-output.sh functions (truncate_text, stream parsing, ANSI colors)"
         echo "  ✓ loop.sh functions (git operations, iteration control, environment handling)"
-        echo "  ✓ extract-credentials.sh (OAuth extraction, file operations)"
         echo "  ✓ entrypoint.sh (auth detection, mode selection, health checks)"
         echo "  ✓ Entire CLI integration (entire_available, setup_entire, config display)"
         echo "  ✓ Integration testing and script validation"

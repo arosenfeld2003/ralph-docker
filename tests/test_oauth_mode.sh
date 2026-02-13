@@ -55,7 +55,7 @@ EOF
         -v "/tmp/ralph-oauth-test/.claude:/home/ralph/.claude:ro" \
         ralph test 2>&1); then
 
-        if echo "$output" | grep -q "Auth mode: OAuth (Max subscription)"; then
+        if echo "$output" | grep -q "Auth mode: OAuth credentials"; then
             log_success "OAuth credentials.json detected correctly"
         else
             log_error "OAuth credentials.json not detected properly"

@@ -53,26 +53,24 @@ This document describes the security policies, settings, and governance decision
 
 ## Credential Security Model
 
-Ralph Docker handles OAuth tokens to authenticate with the Claude API. The credential lifecycle:
+Ralph Docker supports two authentication methods:
 
 ```
-macOS Keychain → extract-credentials.sh → ~/.claude/.credentials.json → container
-                                                     ↓
-                                          Cleaned up on container stop
+Option A: ANTHROPIC_API_KEY env var → container environment → Claude CLI
+Option B: docker compose run --rm ralph login → ~/.claude volume → Claude CLI
 ```
 
 ### Safeguards
 
-1. **Temporary extraction**: Credentials exist on disk only while the container runs
-2. **File permissions**: `chmod 600` (owner read/write only)
-3. **Cleanup on exit**: `run-with-keychain.sh` removes credential files in its trap handler
-4. **Non-root container**: Ralph runs as user `ralph` (UID 1000), not root
-5. **No credential logging**: Credential values are never written to stdout/stderr or log files
-6. **Gitignored**: `.credentials.json` patterns are excluded from version control
+1. **API keys in memory only**: When using `ANTHROPIC_API_KEY`, the key exists only as an environment variable — never written to disk by Ralph
+2. **Login credentials in mounted volume**: Interactive login credentials persist in the host's `~/.claude` directory (mounted into the container)
+3. **Non-root container**: Ralph runs as user `ralph` (UID 1000), not root
+4. **No credential logging**: Credential values are never written to stdout/stderr or log files
+5. **Gitignored**: `.credentials.json` patterns are excluded from version control
 
 ### What is NOT protected
 
-- If the container is left running indefinitely, credentials remain on disk
+- The mounted `~/.claude` volume is readable by the container
 - The mounted workspace is fully writable — Ralph can modify any file in it
 - `--dangerously-skip-permissions` means Claude CLI auto-approves all tool use inside the container
 

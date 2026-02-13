@@ -9,6 +9,12 @@ The development framework is now feature-complete and production-ready. Major ar
 
 ## Completed Items
 
+### Remove Keychain Extraction, Add API Key + Interactive Login Auth
+**Files deleted**: `scripts/run-with-keychain.sh`, `scripts/extract-credentials.sh`
+**Files modified**: `docker-compose.yml`, `scripts/entrypoint.sh`, `.env.example`, `README.md`, `SECURITY.md`, `docs/repository-security-policy.md`, `CONTRIBUTING.md`, tests
+**Issue**: Auth flow used macOS Keychain extraction — macOS-only, complex, and fragile.
+**Resolution**: Replaced with two cross-platform methods: `ANTHROPIC_API_KEY` env var and `docker compose run --rm ralph login` for interactive authentication. Credentials from login persist in the mounted `~/.claude` volume.
+
 ### Generic Exception Handling in proxy.py
 **File**: proxy.py
 **Issue**: Generic catch-all exception handling masked specific errors, making debugging difficult.

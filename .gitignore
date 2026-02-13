@@ -1,0 +1,9 @@
+# Environment
+.env
+
+# Claude Code local settings
+/.claude/
+
+# Credentials
+.credentials.json
+credentials.json

@@ -35,9 +35,9 @@ Instead, please report vulnerabilities privately via one of these methods:
 This project handles sensitive credentials and runs code autonomously. Key areas of concern:
 
 ### Credential Handling
-- OAuth tokens are extracted from macOS Keychain and written to a temporary file
-- Credentials are cleaned up automatically when the container stops
-- Credential files use 600 permissions (owner read/write only)
+- API keys are passed via environment variable (never written to disk by Ralph)
+- Interactive login credentials (`claude auth login`) persist in the mounted `~/.claude` volume
+- No temporary credential files are created or cleaned up
 - **Never commit credentials** to the repository
 
 ### Container Security

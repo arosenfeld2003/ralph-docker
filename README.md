@@ -7,13 +7,13 @@ Containerized autonomous development loop using the Ralph Wiggum methodology. Ra
 ```
 /ralph skill          ralph.sh             ralph-docker
 ━━━━━━━━━━━━━        ━━━━━━━━━━━━━        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Interviews you     1. Sets workspace    1. Extracts Keychain creds
+1. Interviews you     1. Sets workspace    1. Authenticates (API key or login)
 2. Creates project       path              2. Starts Docker container
    files:             2. Calls ralph-      3. Mounts your project
    - AGENTS.md           docker            4. Runs Claude in a loop
    - PROMPT_*.md                           5. Reads specs, implements,
    - specs/                                   tests, commits
-   - ralph.sh                              6. Cleans up creds on exit
+   - ralph.sh
 ```
 
 ## Quick Start
@@ -38,14 +38,20 @@ cd your-project/
 ./ralph.sh plan 3
 ```
 
-That's it. `ralph.sh` handles everything: setting the workspace path, extracting your Claude credentials from macOS Keychain, starting the Docker container, and running the loop.
+That's it. `ralph.sh` handles everything: setting the workspace path, starting the Docker container, and running the loop.
 
 ## Prerequisites
 
 - **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
-- **Claude Max subscription** ($100/mo or $200/mo)
-- **Logged in** via `claude auth login` (credentials stored in macOS Keychain)
+- **Anthropic API key** or **Claude Max subscription**
 - **`/ralph` skill** installed in Claude Code (generates project files)
+
+### Authentication
+
+Choose one:
+
+1. **API key** (simplest): Set `ANTHROPIC_API_KEY` environment variable
+2. **Interactive login**: Run `docker compose run --rm ralph login` — credentials persist in the mounted `~/.claude` volume
 
 ## Branch Safety
 
@@ -102,11 +108,10 @@ cp .env.example .env
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  run-with-keychain.sh                                   │
-│  1. Extract OAuth token from macOS Keychain             │
-│  2. Write to ~/.claude/.credentials.json                │
-│  3. Start Docker container                              │
-│  4. Clean up credentials on exit                        │
+│  Authentication                                         │
+│  Option A: ANTHROPIC_API_KEY env var                    │
+│  Option B: docker compose run --rm ralph login          │
+│            (credentials persist in ~/.claude volume)    │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
@@ -116,7 +121,7 @@ cp .env.example .env
 │  │ entrypoint.sh → loop.sh → format-output.sh         ││
 │  │      │                                              ││
 │  │      ▼                                              ││
-│  │ Claude CLI (reads ~/.claude/.credentials.json)      ││
+│  │ Claude CLI (API key or ~/.claude credentials)       ││
 │  └─────────────────────────────────────────────────────┘│
 │                          │                              │
 │            Mounted: /home/ralph/workspace               │
@@ -143,6 +148,7 @@ Since `/ralph` generates customized prompts in your project, those are used auto
 | Command | Description |
 |---------|-------------|
 | `loop` | Run the Ralph loop (default) |
+| `login` | Authenticate with Claude interactively (persists in `~/.claude` volume) |
 | `shell` | Start an interactive bash shell |
 | `version` | Show Claude CLI version |
 | `test` | Run connectivity tests |
@@ -174,13 +180,14 @@ docker compose run --rm ralph entire-status
 
 ## Troubleshooting
 
-**"Could not find Claude credentials in Keychain"**
-```bash
-claude auth login
-```
-
 **"No authentication found"**
-- Make sure you're using `./ralph.sh` or `./scripts/run-with-keychain.sh`, not plain `docker compose`
+```bash
+# Option 1: Set API key
+ANTHROPIC_API_KEY=sk-ant-... docker compose up ralph
+
+# Option 2: Login interactively (one-time, credentials persist)
+docker compose run --rm ralph login
+```
 
 **"ralph-docker not found"**
 - `ralph.sh` looks for this repo at `$HOME/repos/claude/claudecode/ralph-docker` by default
@@ -202,10 +209,9 @@ claude auth login
 1. **Container Isolation**: Ralph runs with `--dangerously-skip-permissions` which auto-approves all tool calls. The container limits blast radius to the mounted workspace.
 
 2. **Credential Handling**:
-   - OAuth tokens are extracted from Keychain temporarily
-   - Written to `~/.claude/.credentials.json` only during container run
-   - Automatically cleaned up when container stops
-   - File has 600 permissions (owner read/write only)
+   - API keys are passed via environment variable (never written to disk by Ralph)
+   - Interactive login credentials persist in the mounted `~/.claude` volume
+   - No temporary credential files are created or cleaned up
 
 3. **Workspace Access**: Ralph has full read/write access to your mounted workspace. Don't mount sensitive directories you don't want modified.
 
@@ -221,9 +227,7 @@ ralph-docker/
 ├── scripts/
 │   ├── entrypoint.sh       # Container startup
 │   ├── loop.sh             # Main Ralph loop
-│   ├── format-output.sh    # JSON → human readable
-│   ├── run-with-keychain.sh    # macOS credential helper
-│   └── extract-credentials.sh  # Keychain extraction
+│   └── format-output.sh    # JSON → human readable
 ├── lib/
 │   └── output-formatter.js # Rich output formatter (Node.js)
 └── prompts/
