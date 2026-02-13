@@ -256,5 +256,30 @@ while true; do
     sleep 1
 done
 
+# ─── Clean up scaffolding ────────────────────────────────────────────
+
+log_info "Cleaning up scaffolding files..."
+CLEANED=()
+if [ -d "specs" ]; then
+    rm -rf specs
+    CLEANED+=("specs/")
+fi
+for f in AGENTS.md IMPLEMENTATION_PLAN.md PROMPT_plan.md PROMPT_build.md; do
+    if [ -f "$f" ]; then
+        rm -f "$f"
+        CLEANED+=("$f")
+    fi
+done
+
+if [ ${#CLEANED[@]} -gt 0 ]; then
+    log_success "Removed: ${CLEANED[*]}"
+    git add -A
+    git commit -m "chore: Remove Ralph scaffolding files" --no-verify 2>/dev/null || true
+    if [ "$PUSH_AFTER_COMMIT" = "true" ]; then
+        CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+        [ -n "$CURRENT_BRANCH" ] && git push origin "$CURRENT_BRANCH" 2>/dev/null || true
+    fi
+fi
+
 echo ""
 log_success "Loop finished after $ITERATION iterations"
