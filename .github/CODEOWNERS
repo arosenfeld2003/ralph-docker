@@ -1,0 +1,14 @@
+# Default owner for everything
+* @arosenfeld2003
+
+# Scripts and Docker configuration
+scripts/ @arosenfeld2003
+Dockerfile @arosenfeld2003
+docker-compose.yml @arosenfeld2003
+
+# Prompts (core behavior)
+prompts/ @arosenfeld2003
+
+# Security-sensitive files
+SECURITY.md @arosenfeld2003
+.github/ @arosenfeld2003
