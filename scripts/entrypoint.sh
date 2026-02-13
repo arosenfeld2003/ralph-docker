@@ -172,7 +172,7 @@ main() {
             wait_for_litellm || exit 1
             verify_workspace
             log_info "Starting workspace setup..."
-            exec /home/ralph/scripts/setup-workspace.sh
+            exec /home/ralph/scripts/setup-workspace.sh "$@"
             ;;
         login)
             log_info "Starting interactive Claude login..."
@@ -198,6 +198,8 @@ Ralph Docker - Containerized Ralph Loop
 COMMANDS:
   loop            Run the Ralph loop (default)
   setup           Set up a project for Ralph (interactive interview + file generation)
+                    --prompt "text"    Provide a detailed project prompt (skips interview, auto-overwrites)
+                    --prompt-file path Provide prompt from a file (relative to workspace)
   login           Authenticate with Claude interactively (credentials persist in ~/.claude volume)
   shell           Start an interactive bash shell
   version         Show Claude CLI version
@@ -232,6 +234,12 @@ EXAMPLES:
 
   # Set up a new project (interactive interview, generates all files)
   WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup
+
+  # Set up with a detailed prompt (replaces existing files)
+  WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup --prompt "Problem: ..."
+
+  # Set up from a prompt file in your workspace
+  WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup --prompt-file specs/prompt.md
 
   # Interactive login (one-time, credentials persist in ~/.claude volume)
   docker compose run --rm ralph login
