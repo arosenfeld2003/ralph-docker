@@ -208,6 +208,13 @@ setup_entire() {
     [ "${RALPH_ENTIRE_PUSH_SESSIONS:-true}" = "false" ] && flags="$flags --skip-push-sessions"
 
     if entire enable $flags --force 2>&1; then
+        # Fix hooks: entire enable writes hooks using "go run .../main.go" which requires
+        # Go to be installed. Replace with the "entire" binary which is already available.
+        local settings=".claude/settings.json"
+        if [ -f "$settings" ] && grep -q 'go run.*entire/main.go' "$settings"; then
+            sed -i 's|go run \${CLAUDE_PROJECT_DIR}/cmd/entire/main.go|entire|g' "$settings"
+            log_info "Fixed Entire hooks to use binary instead of go run"
+        fi
         log_success "Entire enabled (${RALPH_ENTIRE_STRATEGY:-manual-commit})"
     else
         log_warn "Entire enable failed, continuing without observability"
