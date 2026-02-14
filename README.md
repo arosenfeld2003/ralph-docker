@@ -108,6 +108,7 @@ See [Advanced Configuration](docs/ADVANCED.md) for all options.
 2. **Start with plan mode**: Run `./ralph.sh plan 1` to see Ralph's analysis before implementing
 3. **Enable observability**: `RALPH_ENTIRE_ENABLED=true` tracks detailed session history
 4. **Limit iterations**: Use `./ralph.sh 3` to test with a few iterations first
+5. **Rebuild the container**: If you run into login or other issues, add `--build` to force a fresh image rebuild (e.g. `docker compose run --build --rm ralph login`)
 
 ## Additional Documentation
 
