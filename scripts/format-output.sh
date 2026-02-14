@@ -1,7 +1,7 @@
 #!/bin/bash
 # Format stream-json output to human-readable format
-# Passthrough mode: just stream raw JSON lines for debugging/visibility
-# TODO: Replace with a proper single-process formatter (Node.js or jq --stream)
+# Uses Node.js formatter for rich, colored output with animations
 set -euo pipefail
 
-cat
+# Use the Node.js formatter for rich output
+node /home/ralph/workspace/lib/output-formatter.js

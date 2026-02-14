@@ -27,6 +27,100 @@ log_success() {
     echo -e "${GREEN}[ralph]${NC} $1"
 }
 
+# Environment variable validation functions
+validate_ralph_mode() {
+    local mode="${RALPH_MODE:-}"
+    if [ -n "$mode" ] && [ "$mode" != "build" ] && [ "$mode" != "plan" ]; then
+        log_error "Invalid RALPH_MODE: '$mode'"
+        log_error "Valid values: build, plan"
+        log_error "Leave unset to use default: build"
+        return 1
+    fi
+}
+
+validate_ralph_output_format() {
+    local format="${RALPH_OUTPUT_FORMAT:-}"
+    if [ -n "$format" ] && [ "$format" != "pretty" ] && [ "$format" != "json" ]; then
+        log_error "Invalid RALPH_OUTPUT_FORMAT: '$format'"
+        log_error "Valid values: pretty, json"
+        log_error "Leave unset to use default: pretty"
+        return 1
+    fi
+}
+
+validate_ralph_max_iterations() {
+    local max_iter="${RALPH_MAX_ITERATIONS:-}"
+    if [ -n "$max_iter" ]; then
+        # Check if it's a valid non-negative integer
+        if ! [[ "$max_iter" =~ ^[0-9]+$ ]]; then
+            log_error "Invalid RALPH_MAX_ITERATIONS: '$max_iter'"
+            log_error "Must be a non-negative integer (0 for unlimited)"
+            log_error "Leave unset to use default: 0"
+            return 1
+        fi
+    fi
+}
+
+validate_ralph_push_after_commit() {
+    local push="${RALPH_PUSH_AFTER_COMMIT:-}"
+    if [ -n "$push" ] && [ "$push" != "true" ] && [ "$push" != "false" ]; then
+        log_error "Invalid RALPH_PUSH_AFTER_COMMIT: '$push'"
+        log_error "Valid values: true, false"
+        log_error "Leave unset to use default: true"
+        return 1
+    fi
+}
+
+validate_ralph_model() {
+    local model="${RALPH_MODEL:-}"
+    if [ -n "$model" ]; then
+        # Allow common Claude model names or ollama/* pattern
+        case "$model" in
+            opus|sonnet|haiku|claude-*|ollama/*)
+                # Valid model names
+                ;;
+            *)
+                log_error "Invalid RALPH_MODEL: '$model'"
+                log_error "Valid values: opus, sonnet, haiku, claude-*, ollama/*"
+                log_error "Examples: opus, sonnet, claude-3-sonnet, ollama/llama2"
+                log_error "Leave unset to use default: opus"
+                return 1
+                ;;
+        esac
+    fi
+}
+
+# Validate all environment variables
+validate_environment() {
+    local validation_failed=false
+
+    if ! validate_ralph_mode; then
+        validation_failed=true
+    fi
+
+    if ! validate_ralph_output_format; then
+        validation_failed=true
+    fi
+
+    if ! validate_ralph_max_iterations; then
+        validation_failed=true
+    fi
+
+    if ! validate_ralph_push_after_commit; then
+        validation_failed=true
+    fi
+
+    if ! validate_ralph_model; then
+        validation_failed=true
+    fi
+
+    if [ "$validation_failed" = true ]; then
+        log_error "Environment variable validation failed"
+        log_error "Fix the above errors and try again"
+        return 1
+    fi
+}
+
 # Detect authentication mode
 detect_auth() {
     local base_url="${ANTHROPIC_BASE_URL:-}"
@@ -157,6 +251,7 @@ main() {
 
     case "$cmd" in
         loop)
+            validate_environment || exit 1
             detect_auth || exit 1
             wait_for_litellm || exit 1
             verify_workspace
@@ -168,6 +263,7 @@ main() {
             entire_available && entire status || log_warn "Entire not available"
             ;;
         setup)
+            validate_environment || exit 1
             detect_auth || exit 1
             wait_for_litellm || exit 1
             verify_workspace
@@ -186,6 +282,7 @@ main() {
             claude --version
             ;;
         test)
+            validate_environment || exit 1
             detect_auth || exit 1
             wait_for_litellm || exit 1
             log_success "All checks passed!"

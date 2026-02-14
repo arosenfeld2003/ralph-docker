@@ -29,6 +29,13 @@ Improve the UX for Ralph-Docker - the README is much too long and doesn't flow n
 - **Git Remote**: Not configured. Push commands will fail until remote is added.
 - **Node.js**: Available for running JavaScript files.
 
+## Work Summary Feature
+
+- Located at end of loop.sh after main loop
+- generate_work_summary() shows commits, files changed, duration, next steps
+- cleanup_scaffolding() removes Ralph files before PR creation
+- Graceful interruption (Ctrl+C) triggers summary via signal trap
+
 ## Running Tests
 
 ```bash
