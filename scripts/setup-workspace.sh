@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Graceful exit on Ctrl+C
+trap 'echo "" && echo -e "\033[0;36m[ralph]\033[0m Setup cancelled." && exit 0' INT
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -18,6 +21,27 @@ log_error() { echo -e "${RED}[ralph]${NC} $1"; }
 log_success() { echo -e "${GREEN}[ralph]${NC} $1"; }
 
 MODEL="${RALPH_MODEL:-opus}"
+
+# ─── Parse arguments ─────────────────────────────────────────────────
+
+PROMPT_TEXT=""
+PROMPT_FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --prompt)
+            PROMPT_TEXT="$2"
+            shift 2
+            ;;
+        --prompt-file)
+            PROMPT_FILE="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 # ─── Verify workspace ────────────────────────────────────────────────
 
@@ -35,6 +59,17 @@ if ! git rev-parse --git-dir &>/dev/null; then
     exit 1
 fi
 
+# Resolve prompt from file if specified (after cd so paths resolve relative to workspace)
+if [ -n "$PROMPT_FILE" ]; then
+    if [ ! -f "$PROMPT_FILE" ]; then
+        log_error "Prompt file not found: $PROMPT_FILE"
+        log_error "The path must be relative to your workspace (the WORKSPACE_PATH directory)."
+        log_error "Example: --prompt-file specs/prompt.md"
+        exit 1
+    fi
+    PROMPT_TEXT=$(cat "$PROMPT_FILE")
+fi
+
 # ─── Check for existing Ralph files ─────────────────────────────────
 
 EXISTING_FILES=()
@@ -44,47 +79,92 @@ done
 [ -d "specs" ] && EXISTING_FILES+=("specs/")
 
 if [ ${#EXISTING_FILES[@]} -gt 0 ]; then
-    echo ""
-    log_warn "Found existing Ralph files: ${EXISTING_FILES[*]}"
-    echo ""
-    read -p "Overwrite them? [y/N] " -r overwrite
-    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-        log_info "Setup cancelled. Existing files preserved."
-        exit 0
+    if [ -n "$PROMPT_TEXT" ]; then
+        # When a prompt is provided, auto-overwrite without confirmation
+        log_info "Overwriting existing Ralph files: ${EXISTING_FILES[*]}"
+    else
+        echo ""
+        log_warn "Found existing Ralph files: ${EXISTING_FILES[*]}"
+        echo ""
+        read -p "Overwrite them? [y/N] " -r overwrite
+        if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+            log_info "Setup cancelled. Existing files preserved."
+            exit 0
+        fi
+        echo ""
     fi
-    echo ""
 fi
 
 # ─── Interview ───────────────────────────────────────────────────────
 
-echo ""
-echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BOLD}  Ralph Setup${NC}"
-echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
+if [ -n "$PROMPT_TEXT" ]; then
+    # Prompt provided via --prompt or --prompt-file — skip interactive interview
+    log_info "Using provided prompt (${#PROMPT_TEXT} chars)"
+    PROJECT_GOAL="(see detailed prompt below)"
+    TECH_STACK=""
+    BUILD_CMD=""
+    TEST_CMD=""
+else
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}  Ralph Setup${NC}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  Answer 4 questions to configure Ralph for your project."
+    echo -e "  Type ${BOLD}quit${NC} or press ${BOLD}Ctrl+C${NC} at any prompt to exit."
+    echo ""
+    echo -e "  ${CYAN}Prefer to skip the interview?${NC} Pass your project"
+    echo -e "  description directly and setup runs fully automated:"
+    echo ""
+    echo -e "    ${BOLD}--prompt \"Build a REST API with auth and PostgreSQL\"${NC}"
+    echo -e "    ${BOLD}--prompt-file specs/prompt.md${NC}"
+    echo ""
+    echo -e "  ${CYAN}Example:${NC}"
+    echo -e "    WORKSPACE_PATH=. docker compose run --rm ralph setup \\"
+    echo -e "      --prompt \"Your project description here\""
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
 
-# 1. Project goal (required)
-PROJECT_GOAL=""
-while [ -z "$PROJECT_GOAL" ]; do
-    read -p "In one sentence, what is the goal of this project? " -r PROJECT_GOAL
-    if [ -z "$PROJECT_GOAL" ]; then
-        log_warn "Project goal is required."
+    # 1. Project goal (required)
+    PROJECT_GOAL=""
+    while [ -z "$PROJECT_GOAL" ]; do
+        read -p "In one sentence, what is the goal of this project? " -r PROJECT_GOAL
+        if [[ "$PROJECT_GOAL" =~ ^(quit|exit|q)$ ]]; then
+            log_info "Setup cancelled."
+            exit 0
+        fi
+        if [ -z "$PROJECT_GOAL" ]; then
+            log_warn "Project goal is required."
+        fi
+    done
+
+    # 2. Tech stack (optional)
+    echo ""
+    read -p "What tech stack? (press Enter to auto-detect from codebase) " -r TECH_STACK
+    if [[ "$TECH_STACK" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
     fi
-done
 
-# 2. Tech stack (optional)
-echo ""
-read -p "What tech stack? (press Enter to auto-detect from codebase) " -r TECH_STACK
+    # 3. Build command (optional)
+    echo ""
+    read -p "Build command? (press Enter to auto-detect) " -r BUILD_CMD
+    if [[ "$BUILD_CMD" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
+    fi
 
-# 3. Build command (optional)
-echo ""
-read -p "Build command? (press Enter to auto-detect) " -r BUILD_CMD
+    # 4. Test command (optional)
+    echo ""
+    read -p "Test command? (press Enter to auto-detect) " -r TEST_CMD
+    if [[ "$TEST_CMD" =~ ^(quit|exit|q)$ ]]; then
+        log_info "Setup cancelled."
+        exit 0
+    fi
 
-# 4. Test command (optional)
-echo ""
-read -p "Test command? (press Enter to auto-detect) " -r TEST_CMD
-
-echo ""
+    echo ""
+fi
 
 # ─── Assemble prompt ─────────────────────────────────────────────────
 
@@ -97,34 +177,47 @@ fi
 # Read the ralph.md skill template
 SKILL_TEMPLATE=$(cat "$SKILLS_FILE")
 
-# Build the context block with interview answers
-CONTEXT="The user has already answered the interview questions. Do NOT use AskUserQuestion — use these answers directly:
+# Build the context block
+if [ -n "$PROMPT_TEXT" ]; then
+    # Detailed prompt mode — pass the full prompt as project context
+    CONTEXT="The user has provided a detailed project prompt. Do NOT use AskUserQuestion — use the prompt below as the project description and goals.
+
+DETAILED PROJECT PROMPT:
+${PROMPT_TEXT}
+
+TECH STACK: Auto-detect from the codebase. Examine existing files (package.json, requirements.txt, go.mod, Cargo.toml, etc.) to determine the stack.
+BUILD COMMAND: Auto-detect from the codebase.
+TEST COMMAND: Auto-detect from the codebase."
+else
+    # Interactive mode — use interview answers
+    CONTEXT="The user has already answered the interview questions. Do NOT use AskUserQuestion — use these answers directly:
 
 PROJECT GOAL: ${PROJECT_GOAL}
 "
 
-if [ -n "$TECH_STACK" ]; then
-    CONTEXT+="TECH STACK: ${TECH_STACK}
+    if [ -n "$TECH_STACK" ]; then
+        CONTEXT+="TECH STACK: ${TECH_STACK}
 "
-else
-    CONTEXT+="TECH STACK: Auto-detect from the codebase. Examine existing files (package.json, requirements.txt, go.mod, Cargo.toml, etc.) to determine the stack.
+    else
+        CONTEXT+="TECH STACK: Auto-detect from the codebase. Examine existing files (package.json, requirements.txt, go.mod, Cargo.toml, etc.) to determine the stack.
 "
-fi
+    fi
 
-if [ -n "$BUILD_CMD" ]; then
-    CONTEXT+="BUILD COMMAND: ${BUILD_CMD}
+    if [ -n "$BUILD_CMD" ]; then
+        CONTEXT+="BUILD COMMAND: ${BUILD_CMD}
 "
-else
-    CONTEXT+="BUILD COMMAND: Auto-detect from the codebase.
+    else
+        CONTEXT+="BUILD COMMAND: Auto-detect from the codebase.
 "
-fi
+    fi
 
-if [ -n "$TEST_CMD" ]; then
-    CONTEXT+="TEST COMMAND: ${TEST_CMD}
+    if [ -n "$TEST_CMD" ]; then
+        CONTEXT+="TEST COMMAND: ${TEST_CMD}
 "
-else
-    CONTEXT+="TEST COMMAND: Auto-detect from the codebase.
+    else
+        CONTEXT+="TEST COMMAND: Auto-detect from the codebase.
 "
+    fi
 fi
 
 CONTEXT+="
@@ -169,7 +262,13 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo -e "  ${GREEN}Setup Complete${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  Project Goal: $PROJECT_GOAL"
+if [ -n "$PROMPT_TEXT" ]; then
+    DISPLAY_GOAL="${PROMPT_TEXT:0:80}"
+    [ ${#PROMPT_TEXT} -gt 80 ] && DISPLAY_GOAL+="..."
+    echo "  Project Prompt: $DISPLAY_GOAL"
+else
+    echo "  Project Goal: $PROJECT_GOAL"
+fi
 echo ""
 echo "  Created files:"
 for f in AGENTS.md IMPLEMENTATION_PLAN.md PROMPT_plan.md PROMPT_build.md ralph.sh; do
