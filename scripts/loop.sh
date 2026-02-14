@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Track start time for session duration
+SESSION_START=$(date +%s)
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,6 +18,146 @@ log_info() { echo -e "${CYAN}[ralph]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[ralph]${NC} $1"; }
 log_error() { echo -e "${RED}[ralph]${NC} $1"; }
 log_success() { echo -e "${GREEN}[ralph]${NC} $1"; }
+
+# Generate work summary
+generate_work_summary() {
+    local exit_reason="${1:-completed}"
+    local session_end=$(date +%s)
+    local duration=$((session_end - SESSION_START))
+    local duration_mins=$((duration / 60))
+    local duration_secs=$((duration % 60))
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    if [ "$exit_reason" = "interrupted" ]; then
+        echo -e "  ${YELLOW}Ralph Session Interrupted${NC}"
+    elif [ "$exit_reason" = "error" ]; then
+        echo -e "  ${RED}Ralph Session Ended (Error)${NC}"
+    else
+        echo -e "  ${GREEN}Ralph Session Complete${NC}"
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Session stats
+    echo "  Session Details:"
+    echo "    Branch: $RALPH_BRANCH"
+    echo "    Iterations: $ITERATION"
+    echo "    Duration: ${duration_mins}m ${duration_secs}s"
+    echo "    Mode: $MODE"
+    echo ""
+
+    # Git summary
+    local commit_count=$(git rev-list --count "$ORIGINAL_BRANCH".."$RALPH_BRANCH" 2>/dev/null || echo "0")
+    if [ "$commit_count" -gt 0 ]; then
+        echo "  Work Completed:"
+        echo "    Commits: $commit_count"
+
+        # Show files changed
+        local files_changed=$(git diff --name-only "$ORIGINAL_BRANCH".."$RALPH_BRANCH" 2>/dev/null | wc -l)
+        if [ "$files_changed" -gt 0 ]; then
+            echo "    Files modified: $files_changed"
+
+            # Show top 5 most changed files
+            echo ""
+            echo "    Key changes:"
+            git diff --stat "$ORIGINAL_BRANCH".."$RALPH_BRANCH" 2>/dev/null | head -6 | tail -5 | sed 's/^/      /'
+        fi
+
+        echo ""
+        echo "    Recent commits:"
+        git log --oneline "$ORIGINAL_BRANCH".."$RALPH_BRANCH" 2>/dev/null | head -5 | sed 's/^/      /'
+    else
+        echo "  No commits made during this session"
+    fi
+
+    # Implementation plan summary if exists
+    if [ -f "IMPLEMENTATION_PLAN.md" ]; then
+        local completed_count=$(grep -c "^## Completed" IMPLEMENTATION_PLAN.md 2>/dev/null || echo "0")
+        local current_count=$(grep -c "^## Current Focus" IMPLEMENTATION_PLAN.md 2>/dev/null || echo "0")
+        if [ "$completed_count" -gt 0 ] || [ "$current_count" -gt 0 ]; then
+            echo ""
+            echo "  Plan Status:"
+            echo "    See IMPLEMENTATION_PLAN.md for details"
+        fi
+    fi
+
+    # Next steps
+    echo ""
+    echo "  Next Steps:"
+    if [ "$commit_count" -gt 0 ]; then
+        echo "    1. Review changes: git diff ${ORIGINAL_BRANCH}...${RALPH_BRANCH}"
+        echo "    2. Test the changes in your environment"
+        echo "    3. Create PR: gh pr create --base ${ORIGINAL_BRANCH} --head ${RALPH_BRANCH}"
+    else
+        echo "    1. Review any analysis or plans created"
+        echo "    2. Consider running: ./ralph.sh build"
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# Cleanup scaffolding files
+cleanup_scaffolding() {
+    log_info "Cleaning up Ralph scaffolding files..."
+
+    local files_to_remove=()
+    local dirs_to_remove=()
+
+    # Check which scaffolding files exist
+    [ -d "specs" ] && dirs_to_remove+=("specs")
+    [ -f "AGENTS.md" ] && files_to_remove+=("AGENTS.md")
+    [ -f "IMPLEMENTATION_PLAN.md" ] && files_to_remove+=("IMPLEMENTATION_PLAN.md")
+    [ -f "PROMPT_plan.md" ] && files_to_remove+=("PROMPT_plan.md")
+    [ -f "PROMPT_build.md" ] && files_to_remove+=("PROMPT_build.md")
+    [ -f "PROMPT_plan_local.md" ] && files_to_remove+=("PROMPT_plan_local.md")
+    [ -f "PROMPT_build_local.md" ] && files_to_remove+=("PROMPT_build_local.md")
+
+    if [ ${#files_to_remove[@]} -eq 0 ] && [ ${#dirs_to_remove[@]} -eq 0 ]; then
+        log_info "No scaffolding files to clean up"
+        return
+    fi
+
+    # Remove the files
+    for file in "${files_to_remove[@]}"; do
+        git rm -f "$file" 2>/dev/null || rm -f "$file"
+        log_info "  Removed: $file"
+    done
+
+    for dir in "${dirs_to_remove[@]}"; do
+        git rm -rf "$dir" 2>/dev/null || rm -rf "$dir"
+        log_info "  Removed: $dir/"
+    done
+
+    # Create cleanup commit if there are changes
+    if ! git diff --cached --quiet 2>/dev/null; then
+        log_info "Creating cleanup commit..."
+        git commit -m "chore: Remove Ralph scaffolding files
+
+These files were used during the Ralph development session
+and are no longer needed for the final pull request."
+
+        # Push if enabled
+        if [ "$PUSH_AFTER_COMMIT" = "true" ]; then
+            log_info "Pushing cleanup commit..."
+            git push origin "$RALPH_BRANCH" 2>/dev/null || \
+                git push -u origin "$RALPH_BRANCH" 2>/dev/null || \
+                log_warn "Push failed (continuing anyway)"
+        fi
+    fi
+}
+
+# Handle interruption gracefully
+handle_interruption() {
+    echo ""
+    log_warn "Ralph loop interrupted by user (Ctrl+C)"
+    generate_work_summary "interrupted"
+    exit 130
+}
+
+# Set up signal trap for graceful interruption
+trap 'handle_interruption' INT TERM
 
 # Check if Entire CLI is available and enabled
 entire_available() {
@@ -62,6 +205,9 @@ if [ ! -f "$PROMPT_FILE" ]; then
     exit 1
 fi
 
+# Read prompt content now (before any git operations that might stash/remove files)
+PROMPT_CONTENT=$(cat "$PROMPT_FILE")
+
 # Build model argument
 MODEL_ARG="--model $MODEL"
 
@@ -84,10 +230,12 @@ RALPH_BRANCH="ralph/${WORKSPACE_NAME}-${TIMESTAMP}"
 ORIGINAL_BRANCH=$(git branch --show-current 2>/dev/null || echo "HEAD")
 
 # Check for uncommitted changes
+DID_STASH=false
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
     log_warn "Uncommitted changes detected"
     log_info "Stashing changes before creating branch..."
     git stash push -m "Ralph auto-stash before $RALPH_BRANCH"
+    DID_STASH=true
 fi
 
 # Create and checkout the new branch
@@ -95,6 +243,12 @@ log_info "Creating branch: $RALPH_BRANCH"
 if ! git checkout -b "$RALPH_BRANCH" 2>/dev/null; then
     log_error "Failed to create branch $RALPH_BRANCH"
     exit 1
+fi
+
+# Restore stashed changes onto the new branch so scaffolding files are available
+if [ "$DID_STASH" = true ]; then
+    log_info "Restoring stashed changes onto $RALPH_BRANCH..."
+    git stash pop 2>/dev/null || log_warn "Stash pop failed (changes may conflict)"
 fi
 
 log_info "Starting loop..."
@@ -167,6 +321,7 @@ check_for_errors() {
 }
 
 # Main loop
+log_info "Max iterations: $MAX_ITERATIONS (ITERATION starts at $ITERATION)"
 while true; do
     # Check iteration limit
     if [ "$MAX_ITERATIONS" -gt 0 ] && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
@@ -188,7 +343,7 @@ while true; do
     # -p: Headless mode (non-interactive)
     # --dangerously-skip-permissions: Auto-approve tool calls
     # --output-format=stream-json: Structured output for filtering
-    cat "$PROMPT_FILE" | claude -p \
+    echo "$PROMPT_CONTENT" | claude -p \
         --dangerously-skip-permissions \
         --output-format=stream-json \
         $MODEL_ARG \
@@ -205,6 +360,7 @@ while true; do
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         # Show last 50 lines of raw output for debugging
         tail -50 "$OUTPUT_TMP"
+        generate_work_summary "error"
         exit 1
     fi
 
@@ -256,29 +412,14 @@ while true; do
     sleep 1
 done
 
-# ─── Clean up scaffolding ────────────────────────────────────────────
+# Generate work summary
+generate_work_summary "completed"
 
-log_info "Cleaning up scaffolding files..."
-CLEANED=()
-if [ -d "specs" ]; then
-    rm -rf specs
-    CLEANED+=("specs/")
-fi
-for f in AGENTS.md IMPLEMENTATION_PLAN.md PROMPT_plan.md PROMPT_build.md; do
-    if [ -f "$f" ]; then
-        rm -f "$f"
-        CLEANED+=("$f")
-    fi
-done
-
-if [ ${#CLEANED[@]} -gt 0 ]; then
-    log_success "Removed: ${CLEANED[*]}"
-    git add -A
-    git commit -m "chore: Remove Ralph scaffolding files" --no-verify 2>/dev/null || true
-    if [ "$PUSH_AFTER_COMMIT" = "true" ]; then
-        CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-        [ -n "$CURRENT_BRANCH" ] && git push origin "$CURRENT_BRANCH" 2>/dev/null || true
-    fi
+# Clean up scaffolding files if configured
+if [ "${RALPH_CLEANUP_SCAFFOLDING:-true}" = "true" ]; then
+    cleanup_scaffolding
+else
+    log_info "Scaffolding cleanup disabled (RALPH_CLEANUP_SCAFFOLDING=false)"
 fi
 
 echo ""

@@ -43,15 +43,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Resolve prompt from file if specified
-if [ -n "$PROMPT_FILE" ]; then
-    if [ ! -f "$PROMPT_FILE" ]; then
-        log_error "Prompt file not found: $PROMPT_FILE"
-        exit 1
-    fi
-    PROMPT_TEXT=$(cat "$PROMPT_FILE")
-fi
-
 # ─── Verify workspace ────────────────────────────────────────────────
 
 if [ ! -d "/home/ralph/workspace" ] || [ -z "$(ls -A /home/ralph/workspace 2>/dev/null)" ]; then
@@ -66,6 +57,17 @@ if ! git rev-parse --git-dir &>/dev/null; then
     log_error "Not a git repository. Initialize first:"
     log_error "  cd your-project && git init && git add . && git commit -m 'Initial commit'"
     exit 1
+fi
+
+# Resolve prompt from file if specified (after cd so paths resolve relative to workspace)
+if [ -n "$PROMPT_FILE" ]; then
+    if [ ! -f "$PROMPT_FILE" ]; then
+        log_error "Prompt file not found: $PROMPT_FILE"
+        log_error "The path must be relative to your workspace (the WORKSPACE_PATH directory)."
+        log_error "Example: --prompt-file specs/prompt.md"
+        exit 1
+    fi
+    PROMPT_TEXT=$(cat "$PROMPT_FILE")
 fi
 
 # ─── Check for existing Ralph files ─────────────────────────────────

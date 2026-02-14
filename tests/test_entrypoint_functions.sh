@@ -127,7 +127,7 @@ test_detect_auth_no_auth() {
     unset ANTHROPIC_BASE_URL
     unset ANTHROPIC_API_KEY
 
-    local result
+    local result=0
     detect_auth >/dev/null 2>&1 || result=$?
     assert_equals "1" "$result" "detect_auth should fail without authentication"
 }

@@ -199,7 +199,7 @@ COMMANDS:
   loop            Run the Ralph loop (default)
   setup           Set up a project for Ralph (interactive interview + file generation)
                     --prompt "text"    Provide a detailed project prompt (skips interview, auto-overwrites)
-                    --prompt-file path Provide prompt from a file (relative to workspace)
+                    --prompt-file path Provide prompt from a file (path relative to your WORKSPACE_PATH)
   login           Authenticate with Claude interactively (credentials persist in ~/.claude volume)
   shell           Start an interactive bash shell
   version         Show Claude CLI version
@@ -238,7 +238,7 @@ EXAMPLES:
   # Set up with a detailed prompt (replaces existing files)
   WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup --prompt "Problem: ..."
 
-  # Set up from a prompt file in your workspace
+  # Set up from a prompt file (path is relative to WORKSPACE_PATH)
   WORKSPACE_PATH=/path/to/project docker compose run --rm ralph setup --prompt-file specs/prompt.md
 
   # Interactive login (one-time, credentials persist in ~/.claude volume)
