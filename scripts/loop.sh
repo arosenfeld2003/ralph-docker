@@ -408,6 +408,19 @@ while true; do
     echo "════════════════════════════════════════════════"
     echo ""
 
+    # Check if all tasks in IMPLEMENTATION_PLAN.md are complete
+    if [ -f "IMPLEMENTATION_PLAN.md" ]; then
+        pending_tasks=$(grep -c '^\s*- \[ \]' IMPLEMENTATION_PLAN.md 2>/dev/null || echo "0")
+        completed_tasks=$(grep -c '^\s*- \[x\]' IMPLEMENTATION_PLAN.md 2>/dev/null || echo "0")
+        if [ "$pending_tasks" -eq 0 ] && [ "$completed_tasks" -gt 0 ]; then
+            echo ""
+            log_success "All tasks complete ($completed_tasks done, 0 pending) — stopping early"
+            break
+        else
+            log_info "Plan status: $completed_tasks done, $pending_tasks pending"
+        fi
+    fi
+
     # Small delay between iterations
     sleep 1
 done

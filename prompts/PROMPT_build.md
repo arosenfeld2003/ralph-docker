@@ -1,8 +1,8 @@
 0a. Study `specs/*` in the CURRENT WORKING DIRECTORY to learn the application specifications.
-0b. Study @IMPLEMENTATION_PLAN.md in the CURRENT WORKING DIRECTORY - this contains your task list.
+0b. Study @IMPLEMENTATION_PLAN.md in the CURRENT WORKING DIRECTORY - this contains your task list. Tasks use checkboxes: `- [ ]` (pending) and `- [x]` (done).
 0c. Look for source code in common locations: `src/*`, `lib/*`, `scripts/*`, or the root directory.
 
-1. CONTINUE FROM EXISTING PROGRESS: If @IMPLEMENTATION_PLAN.md has completed items, you are resuming work - do NOT start over. Pick the next uncompleted item and implement it. Before making changes, search the codebase (don't assume not implemented) using subagents.
+1. CONTINUE FROM EXISTING PROGRESS: If @IMPLEMENTATION_PLAN.md has completed items (`- [x]`), you are resuming work - do NOT start over. Pick the next `- [ ]` item and implement it. When done, mark it `- [x]`. Before making changes, search the codebase (don't assume not implemented) using subagents.
 
 2. After implementing functionality or resolving problems, run the tests. If functionality is missing then add it per the specifications. Think step by step carefully.
 
