@@ -4,9 +4,9 @@
 
 1. ANALYZE the existing codebase using parallel subagents. Compare what's implemented against what's in `specs/*`.
 
-2. If @IMPLEMENTATION_PLAN.md exists with items, DO NOT replace it - UPDATE it with new findings. Add new items, mark discovered completions, note blockers.
+2. If @IMPLEMENTATION_PLAN.md exists with items, DO NOT replace it - UPDATE it with new findings. Add new `- [ ]` items, mark discovered completions `- [x]`, note blockers.
 
-3. If @IMPLEMENTATION_PLAN.md doesn't exist, CREATE it as a prioritized bullet list of tasks to implement.
+3. If @IMPLEMENTATION_PLAN.md doesn't exist, CREATE it as a prioritized checklist using `- [ ]` for each task.
 
 4. Search for: TODOs, minimal implementations, placeholders, skipped/flaky tests, inconsistent patterns.
 
