@@ -36,7 +36,7 @@ RUN chmod +x scripts/*.sh
 
 # Environment configuration
 ENV RALPH_MODE=build \
-    RALPH_MAX_ITERATIONS=0 \
+    RALPH_MAX_ITERATIONS=5 \
     RALPH_MODEL=opus \
     RALPH_OUTPUT_FORMAT=plain \
     RALPH_PUSH_AFTER_COMMIT=true
