@@ -46,3 +46,10 @@ _No remaining planned tasks - all tasks have been completed._
   - Enhanced user experience with better feedback on configuration issues
 - **Impact**: Provides better error messages and prevents runtime issues from invalid configurations
 - **Status**: Validation system is fully functional and tested
+
+### 6. OAuth Authentication Error Detection ✓
+- **Issue**: OAuth authentication errors were not being detected and reported to users
+- **Solution**: Added comprehensive authentication error detection in loop.sh
+- **Impact**: Users now receive clear feedback when authentication fails with helpful instructions to run the login command
+- **Patterns Detected**: 401, 403, unauthorized, authentication failed, invalid token, token expired, credentials expired, UnauthorizedError
+- **Status**: Feature is now fully functional and tested

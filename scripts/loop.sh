@@ -302,6 +302,15 @@ check_for_errors() {
             log_error "Connection error - is Ollama running?"
             return 1
         fi
+
+        # Check for OAuth authentication errors
+        if grep -q "401\|403\|unauthorized\|authentication failed\|invalid token\|token expired\|credentials expired\|UnauthorizedError" "$output_file" 2>/dev/null; then
+            log_error "Authentication error detected"
+            echo ""
+            log_warn "Your authentication may have expired or be invalid"
+            log_info "Try running: docker compose run --rm ralph login"
+            return 1
+        fi
     fi
 
     # Check result line for errors
